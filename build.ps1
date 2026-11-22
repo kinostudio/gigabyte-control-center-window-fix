@@ -17,7 +17,7 @@ foreach ($file in 'repair-ui-startup.ps1', 'Create-Shortcut.ps1', 'original-bina
 Copy-Item -LiteralPath (Join-Path $root 'docs') -Destination $stage -Recurse -Force
 # Explicit lists keep personal logs and the OEM installer out of the repair-only archive.
 $items = @('ControlCenterRepair.exe','ControlCenterStartupRepair.exe','ControlCenterTaskbarFix.exe','repair-ui-startup.ps1','Create-Shortcut.ps1','original-binary-hashes.json','README.md','README.zh-TW.md','LICENSE','THIRD-PARTY-NOTICES.md','docs') | ForEach-Object { Join-Path $stage $_ }
-$prefix = 'gigabyte-control-center-window-fix-v0.1.0-beta.4'
+$prefix = 'gigabyte-control-center-window-fix-v0.1.0-beta.5'
 Compress-Archive -LiteralPath $items -DestinationPath (Join-Path $dist "$prefix-repair-only.zip") -Force
 if ($InstallerPath) {
     $installer = Get-Item -LiteralPath $InstallerPath

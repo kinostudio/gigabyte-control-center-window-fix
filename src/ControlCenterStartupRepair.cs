@@ -70,6 +70,7 @@ static class ControlCenterStartupRepair {
             return Json.Deserialize<int[]>(Json.Serialize(new[]{4,60}))[1]==60 ? 0 : 1;
         }
         if(args.Length!=0)return 2;
+        var elapsed=Stopwatch.StartNew();
         var report=new Dictionary<string,object> {{"started",DateTimeOffset.Now.ToString("o")},{"status","starting"}};
         int[] before=null;string power=null,service=null;bool changed=false,existed=false;object value=null;RegistryValueKind kind=RegistryValueKind.DWord;Process gui=null;
         using(var mutex=new Mutex(false,@"Local\ControlCenterStartupRepair-"+Process.GetCurrentProcess().SessionId)) {
@@ -81,6 +82,7 @@ static class ControlCenterStartupRepair {
             string actual=Hash(Target);if(!string.Equals(expected,actual,StringComparison.OrdinalIgnoreCase))throw new Exception("Unverified OEM executable; nothing changed.");
             report["originalBinaryHash"]=actual;
             before=Charge();power=Power();service=Service();
+            report["baselineElapsedMs"]=elapsed.ElapsedMilliseconds;
             report["chargeBefore"]=new{policy=before[0],limit=before[1]};report["powerBefore"]=power;report["serviceBefore"]=service;
             string helper=Path.Combine(Root,"ControlCenterTaskbarFix.exe");if(!File.Exists(helper))throw new Exception("Missing taskbar helper; nothing changed.");
             int windowState=WindowState(helper,false);
@@ -96,6 +98,7 @@ static class ControlCenterStartupRepair {
                 }
             }
             report["preflightWindowState"]=windowState;
+            report["preflightElapsedMs"]=elapsed.ElapsedMilliseconds;
             if(windowState==0) {
                 if(WindowState(helper,true)!=0)throw new Exception("Window changed during activation; inspect before retrying.");
                 report["foregroundGrantToWindowHelper"]=LastForegroundGrant;
@@ -161,6 +164,7 @@ static class ControlCenterStartupRepair {
                 }catch(Exception e){report["status"]="failed";report["verificationError"]=e.Message;}
             }
             if(gui!=null)gui.Dispose();
+            report["totalElapsedMs"]=elapsed.ElapsedMilliseconds;
             File.WriteAllText(Path.Combine(Root,"repair-result.json"),Json.Serialize(report),new UTF8Encoding(false));
             mutex.ReleaseMutex();
         }

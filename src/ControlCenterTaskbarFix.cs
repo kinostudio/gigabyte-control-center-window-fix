@@ -34,6 +34,9 @@ static class ControlCenterWindowFix
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW", SetLastError = true)] static extern IntPtr GetWindowLongPtr(IntPtr window, int index);
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)] static extern IntPtr SetWindowLongPtr(IntPtr window, int index, IntPtr value);
     [DllImport("kernel32.dll")] static extern void SetLastError(uint code);
+    [DllImport("kernel32.dll",SetLastError=true)] static extern IntPtr OpenProcess(uint access,bool inherit,int pid);
+    [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool QueryFullProcessImageName(IntPtr process,uint flags,StringBuilder path,ref int size);
+    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
     [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr window, int command);
     [DllImport("user32.dll", SetLastError = true)] static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr window);
@@ -50,8 +53,28 @@ static class ControlCenterWindowFix
     static long TaskbarStyle(long original) { return (original & ~ToolWindow) | AppWindow; }
     static bool StyleCallFailed(IntPtr previous, int error) { return previous == IntPtr.Zero && error != 0; }
     static bool IsTarget(string path) { return string.Equals(path, Target, StringComparison.OrdinalIgnoreCase); }
+    static string ProcessPath(int pid) {
+        IntPtr h=OpenProcess(0x1000,false,pid);if(h==IntPtr.Zero)throw new Win32Exception(Marshal.GetLastWin32Error());
+        try {var path=new StringBuilder(1024);int size=path.Capacity;if(!QueryFullProcessImageName(h,0,path,ref size))throw new Win32Exception(Marshal.GetLastWin32Error());return path.ToString();}
+        finally {CloseHandle(h);}
+    }
+    static bool Activate(IntPtr window) {
+        if(IsIconic(window)||!IsWindowVisible(window))ShowWindow(window,IsZoomed(window)?3:9);
+        // HWND_TOP raises once in the normal Z-order; it never sets HWND_TOPMOST.
+        bool raised=SetWindowPos(window,IntPtr.Zero,0,0,0,0,0x0001|0x0002|0x0010);
+        int raiseError=raised?0:Marshal.GetLastWin32Error();
+        bool requested=SetForegroundWindow(window),foreground=GetForegroundWindow()==window;
+        uint pid;GetWindowThreadProcessId(window,out pid);
+        File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"activation-result.json"),new JavaScriptSerializer().Serialize(new {timestamp=DateTimeOffset.Now.ToString("o"),pid=pid,raised=raised,raiseError=raiseError,requested=requested,isForeground=foreground}));
+        Log("Activation: Raised="+raised+" ForegroundRequest="+requested+" IsForeground="+foreground);
+        return requested;
+    }
     static long Score(int width, int height, bool visible) {
         return !visible || width < 300 || height < 200 ? -1 : (long)width * height;
+    }
+    static long CandidateScore(int width,int height,bool visible,bool minimized) {
+        long score=minimized?60000:Score(width,height,true);
+        return score<0?-1:score+(visible?(1L<<40):0);
     }
     static IntPtr WaitForWindow(Func<IntPtr> probe, Action pause, int attempts) {
         for (int i = 0; i < attempts; i++) {
@@ -74,12 +97,12 @@ static class ControlCenterWindowFix
         } catch (ArgumentException) { return false; }
     }
     // 0: healthy; 4: visible current-user window needs style/icon repair; 5: no usable window.
-    static int Inspect(bool activate) {
+    static int Inspect(bool activate,bool showFirst=false) {
         int session=Process.GetCurrentProcess().SessionId;
         var targets=new HashSet<int>();
         foreach(var p in Process.GetProcessesByName("ControlCenter")) using(p) {
             if(p.SessionId!=session)continue;
-            if(!IsTarget(p.MainModule.FileName))throw new Exception("Unexpected GUI path.");
+            if(!IsTarget(ProcessPath(p.Id)))throw new Exception("Unexpected GUI path.");
             using(var process=new ManagementObject("Win32_Process.Handle='"+p.Id+"'"))
             using(var owner=process.InvokeMethod("GetOwner",null,null)) {
                 if(Convert.ToUInt32(owner["ReturnValue"])!=0)throw new Exception("Cannot verify owner.");
@@ -92,31 +115,30 @@ static class ControlCenterWindowFix
         EnumWindows(delegate(IntPtr w,IntPtr unused) {
             uint pid;GetWindowThreadProcessId(w,out pid);if(!targets.Contains((int)pid))return true;
             var name=new StringBuilder(256);GetClassName(w,name,name.Capacity);Rect rect;
-            if(!name.ToString().StartsWith("HwndWrapper[",StringComparison.Ordinal)||!IsWindowVisible(w)||!GetWindowRect(w,out rect))return true;
-            long score=IsIconic(w)?60000:Score(rect.Right-rect.Left,rect.Bottom-rect.Top,true);
+            if(!name.ToString().StartsWith("HwndWrapper[",StringComparison.Ordinal)||(!showFirst&&!IsWindowVisible(w))||!GetWindowRect(w,out rect))return true;
+            long score=CandidateScore(rect.Right-rect.Left,rect.Bottom-rect.Top,IsWindowVisible(w),IsIconic(w));
             if(score>best){best=score;chosen=w;}return true;
         },IntPtr.Zero);
         if(chosen==IntPtr.Zero)return 5;
         long style=GetWindowLongPtr(chosen,ExStyle).ToInt64();
-        if((style&AppWindow)==0||(style&ToolWindow)!=0)return 4;
+        Log("Inspection: show="+showFirst+" HWND="+chosen+" visible="+IsWindowVisible(chosen)+" style=0x"+style.ToString("X"));
+        int state=((style&AppWindow)==0||(style&ToolWindow)!=0)?4:0;
         string icon=Path.Combine(Path.GetDirectoryName(Target),"icon.ico");
         using(var large=new Icon(icon,GetSystemMetrics(11),GetSystemMetrics(12)))
         using(var small=new Icon(icon,GetSystemMetrics(49),GetSystemMetrics(50))) {
-            if(!MatchingIcon(IconMessage(chosen,0x7F,1,IntPtr.Zero),large)||!MatchingIcon(IconMessage(chosen,0x7F,0,IntPtr.Zero),small))return 4;
+            if(!MatchingIcon(IconMessage(chosen,0x7F,1,IntPtr.Zero),large)||!MatchingIcon(IconMessage(chosen,0x7F,0,IntPtr.Zero),small))state=4;
         }
-        if(activate){
-            if(IsIconic(chosen))ShowWindow(chosen,9);
-            bool requested=SetForegroundWindow(chosen),foreground=GetForegroundWindow()==chosen;
-            uint pid;GetWindowThreadProcessId(chosen,out pid);
-            File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"activation-result.json"),new JavaScriptSerializer().Serialize(new {timestamp=DateTimeOffset.Now.ToString("o"),pid=pid,requested=requested,isForeground=foreground}));
-            Log("Activation: ForegroundRequest="+requested+" IsForeground="+foreground);
-        }
-        return 0;
+        // Do not classify the transient WPF notifications caused by showing as pre-existing damage.
+        if(showFirst||(activate&&state==0))Activate(chosen);
+        return state;
     }
     [STAThread] static int Main(string[] args)
     {
         // This branch is pure: it never queries or changes a Windows application.
         if (args.Length == 1 && args[0] == "--self-test") {
+            Check(CandidateScore(800,600,true,false)>CandidateScore(4000,3000,false,false));
+            Check(CandidateScore(160,28,true,true)>CandidateScore(4000,3000,false,false));
+            Check(CandidateScore(10,10,false,false)==-1);
             Check(!MatchingIcon(IntPtr.Zero,SystemIcons.Application));
             Check(MatchingIcon(SystemIcons.Application.Handle,SystemIcons.Application));
             Check(TaskbarStyle(ToolWindow | 0x80000) == (AppWindow | 0x80000));
@@ -137,8 +159,8 @@ static class ControlCenterWindowFix
             Check(!StyleCallFailed(new IntPtr(0x80000), 5));
             return 0;
         }
-        if (args.Length == 1 && (args[0] == "--check" || args[0] == "--activate")) {
-            try { return Inspect(args[0] == "--activate"); } catch(Exception e) { Log("Inspection failed: "+e.Message); return 2; }
+        if (args.Length == 1 && (args[0] == "--check" || args[0] == "--activate" || args[0] == "--show")) {
+            try { return Inspect(args[0] == "--activate",args[0]=="--show"); } catch(Exception e) { Log("Inspection failed: "+e.Message); return 2; }
         }
         if (args.Length != 0) return 2;
         Log("Taskbar stage started. Executable=" + Application.ExecutablePath);
@@ -234,7 +256,7 @@ static class ControlCenterWindowFix
                 SetWindowLongPtr(chosen, ExStyle, new IntPtr(original));
                 throw;
             } finally { ShowWindow(chosen, maximized ? 3 : minimized ? 9 : 5); }
-            bool activated = SetForegroundWindow(chosen);
+            bool activated = Activate(chosen);
             Log("ForegroundRequest=" + activated + " IsForeground=" + (GetForegroundWindow() == chosen));
             long finalStyle = GetWindowLongPtr(chosen, ExStyle).ToInt64();
             if ((finalStyle & AppWindow) == 0 || (finalStyle & ToolWindow) != 0) throw new Exception("工作列視窗樣式未能保留。");

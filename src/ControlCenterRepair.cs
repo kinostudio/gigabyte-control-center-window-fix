@@ -6,6 +6,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using System.Security.Cryptography;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
@@ -16,6 +17,27 @@ static class ControlCenterRepair
     [DllImport("user32.dll",SetLastError=true)] static extern bool AllowSetForegroundWindow(int pid);
     static bool AutoLaunch(string[] args) { return args.Length == 0 || (args.Length == 1 && args[0] == "--launch"); }
     static bool Success(string status) { return status.StartsWith("ready;") || status.StartsWith("restarted-as-user"); }
+    const string Target = @"C:\Program Files\ControlCenter\ControlCenter.exe";
+    static void VerifyTarget(string root) {
+        var json=new JavaScriptSerializer();string expected=null;
+        foreach(var entry in json.Deserialize<List<Dictionary<string,string>>>(File.ReadAllText(Path.Combine(root,"original-binary-hashes.json"))))
+            if(string.Equals(entry["Path"],Target,StringComparison.OrdinalIgnoreCase))expected=entry["Hash"];
+        using(var sha=SHA256.Create())using(var file=File.OpenRead(Target))
+            if(!string.Equals(expected,BitConverter.ToString(sha.ComputeHash(file)).Replace("-",""),StringComparison.OrdinalIgnoreCase))throw new Exception("未驗證的原廠版本 / Unverified OEM version; nothing started.");
+    }
+    static int ShowAndCheck(string root) {
+        var info=new ProcessStartInfo(Path.Combine(root,"ControlCenterTaskbarFix.exe"),"--show") {UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=root};
+        using(var p=Process.Start(info)) {
+            AllowSetForegroundWindow(p.Id);
+            if(!p.WaitForExit(10000))throw new Exception("視窗檢查逾時 / Window check timed out; inspect logs before retrying.");
+            return p.ExitCode;
+        }
+    }
+    static bool GuiExists() {
+        bool found=false;int session=Process.GetCurrentProcess().SessionId;
+        foreach(var p in Process.GetProcessesByName("ControlCenter"))using(p){if(p.SessionId==session)found=true;}
+        return found;
+    }
     static int BackgroundLaunch() {
         bool created;
         using(var mutex=new Mutex(true,@"Local\ControlCenterBackgroundLaunch-"+Process.GetCurrentProcess().SessionId,out created)) {
@@ -23,7 +45,23 @@ static class ControlCenterRepair
             try {
                 string root=AppDomain.CurrentDomain.BaseDirectory,helper=Path.Combine(root,"ControlCenterStartupRepair.exe");
                 if(!File.Exists(helper))throw new FileNotFoundException("完整解壓縮後再執行 / Extract the complete bundle first.");
+                var elapsed=Stopwatch.StartNew();
                 var started=DateTime.UtcNow;
+                VerifyTarget(root);
+                int quick=ShowAndCheck(root);bool directStart=false;
+                if(quick==5&&!GuiExists()) {
+                    using(var app=Process.Start(new ProcessStartInfo(Target) {UseShellExecute=true,WorkingDirectory=Path.GetDirectoryName(Target),WindowStyle=ProcessWindowStyle.Normal})) {
+                        directStart=true;
+                        // Let the OEM create its window before considering an unnecessary restart.
+                        do {Thread.Sleep(500);quick=ShowAndCheck(root);}while(quick==5&&!app.HasExited&&elapsed.Elapsed<TimeSpan.FromSeconds(15));
+                    }
+                }
+                File.WriteAllText(Path.Combine(root,"launch-result.json"),new JavaScriptSerializer().Serialize(new {started=started.ToString("o"),firstCheck=quick,directStart=directStart,elapsedMs=elapsed.ElapsedMilliseconds,repairNeeded=quick!=0}),Encoding.UTF8);
+                if(quick==0) {
+                    File.WriteAllText(Path.Combine(root,"repair-result.json"),new JavaScriptSerializer().Serialize(new {started=started.ToString("o"),status="ready; repair skipped",action=directStart?"fast-started-without-repair":"fast-reused-without-repair",elapsedMs=elapsed.ElapsedMilliseconds,invariantsChecked=false,note="Read-only window checks only; no registry, service, power or charge writes."}),Encoding.UTF8);
+                    return 0;
+                }
+                if(quick!=2&&quick!=4&&quick!=5)throw new Exception("視窗檢查結果無效 / Invalid inspection result.");
                 var info=new ProcessStartInfo(helper) {UseShellExecute=true,Verb="runas",WorkingDirectory=root,WindowStyle=ProcessWindowStyle.Hidden};
                 using(var child=Process.Start(info)) {
                     // Pass only this user-initiated launch's foreground right to its helper.
