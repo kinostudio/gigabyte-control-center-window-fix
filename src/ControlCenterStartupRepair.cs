@@ -47,6 +47,19 @@ static class ControlCenterStartupRepair {
         }
     }
     static ProcessStartInfo Start(string exe) { return new ProcessStartInfo(exe) {UseShellExecute=false,WorkingDirectory=Path.GetDirectoryName(exe),CreateNoWindow=true}; }
+    static int WindowState(string helper,bool activate) {
+        var info=Start(helper);info.Arguments=activate?"--activate":"--check";
+        using(var p=Process.Start(info)) {
+            if(!p.WaitForExit(15000))throw new Exception("Window inspection timed out; no speculative repair applied.");
+            if(p.ExitCode!=0&&p.ExitCode!=4&&p.ExitCode!=5)throw new Exception("Window inspection failed; see taskbar-diagnostic.txt.");
+            return p.ExitCode;
+        }
+    }
+    static bool HasGui() {
+        bool found=false;int session=Process.GetCurrentProcess().SessionId;
+        foreach(var p in Process.GetProcessesByName("ControlCenter"))using(p){if(p.SessionId==session)found=true;}
+        return found;
+    }
     static int Main(string[] args) {
         if(args.Length==1 && args[0]=="--self-test") {
             if(!SameCharge(new[]{4,60},new[]{4,60}) || SameCharge(new[]{4,60},new[]{4,80}) || SameCharge(new[]{4,60},new[]{0,60}))return 1;
@@ -66,6 +79,26 @@ static class ControlCenterStartupRepair {
             before=Charge();power=Power();service=Service();
             report["chargeBefore"]=new{policy=before[0],limit=before[1]};report["powerBefore"]=power;report["serviceBefore"]=service;
             string helper=Path.Combine(Root,"ControlCenterTaskbarFix.exe");if(!File.Exists(helper))throw new Exception("Missing taskbar helper; nothing changed.");
+            int windowState=WindowState(helper,false);
+            if(windowState==5&&!HasGui()) {
+                using(var readKey=RegistryKey.OpenBaseKey(RegistryHive.LocalMachine,RegistryView.Registry64).OpenSubKey(Key,false)) {
+                    if(readKey==null)throw new Exception("OEM registry key unavailable.");
+                    if(!Array.Exists(readKey.GetValueNames(),n=>n=="FirstTime")) {
+                        gui=Process.Start(Start(Target));report["newProcessId"]=gui.Id;
+                        var deadline=DateTime.UtcNow.AddSeconds(45);
+                        do {Thread.Sleep(500);windowState=WindowState(helper,false);}while(windowState==5&&!gui.HasExited&&DateTime.UtcNow<deadline);
+                        report["directStartAttempted"]=true;
+                    }
+                }
+            }
+            report["preflightWindowState"]=windowState;
+            if(windowState==0) {
+                if(WindowState(helper,true)!=0)throw new Exception("Window changed during activation; inspect before retrying.");
+                report["action"]=report.ContainsKey("directStartAttempted")?"started-without-repair":"reused-without-repair";
+                report["status"]="ready; repair skipped";
+            } else {
+            if(windowState==5) {
+            report["action"]="startup-repair-and-restart";
             using(var key=RegistryKey.OpenBaseKey(RegistryHive.LocalMachine,RegistryView.Registry64).OpenSubKey(Key,true)) {
                 if(key==null)throw new Exception("OEM registry key unavailable.");
                 existed=Array.Exists(key.GetValueNames(),n=>n=="FirstTime");
@@ -88,6 +121,7 @@ static class ControlCenterStartupRepair {
             Thread.Sleep(3000);
             bool current=string.Equals(Owner(gui.Id),WindowsIdentity.GetCurrent().Name,StringComparison.OrdinalIgnoreCase);
             report["newOwnerIsCurrentUser"]=current;if(!current)throw new Exception("OEM GUI is not owned by the current account.");
+            } else { report["action"]="window-repair-only; GUI retained"; }
             string result=Path.Combine(Root,"taskbar-window-result.txt");if(File.Exists(result))File.Delete(result);
             using(var job=Process.Start(Start(helper))) {
                 var deadline=DateTime.UtcNow.AddSeconds(60);
@@ -100,7 +134,8 @@ static class ControlCenterStartupRepair {
                 if(!text.Contains("IconReadback=True"))throw new Exception("OEM icon readback not confirmed.");
                 report["iconKeeperProcessId"]=job.Id;
             }
-            report["status"]="restarted-as-user; awaiting visual/taskbar acceptance";
+            report["status"]=windowState==4?"ready; window repaired; awaiting visual/taskbar acceptance":"restarted-as-user; awaiting visual/taskbar acceptance";
+            }
         } catch(Exception e) {
             report["status"]="failed";report["error"]=e.Message;
             bool running=gui!=null && !gui.HasExited;

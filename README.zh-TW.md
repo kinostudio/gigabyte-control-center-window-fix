@@ -16,19 +16,19 @@
 
 1. 從 [Releases](https://github.com/kinostudio/gigabyte-control-center-window-fix/releases) 下載，核對 SHA-256，**完整解壓縮**到可寫入的資料夾；不要在 ZIP 內執行，也不要只複製單一 EXE。
 2. 尚未安裝者，先確認[官方機型下載表](docs/supported-models.md)，再手動執行完整包內的原廠安裝器，閱讀原廠條款並依需要重新開機。安裝與修復是分開的步驟，修復工具不會自動執行安裝器或重裝。
-3. 先完成 Control Center 裡正在操作的設定，再以目前登入的本機管理員帳戶開啟 `ControlCenterRepair.exe`，按「修復並開啟」，手動處理同一帳戶的 Windows UAC 授權。使用另一帳戶的管理員認證與不同安裝路徑尚未驗證。
-4. 工具會關閉目前工作階段中雜湊已核對的原廠 GUI、備份並重設 FirstTime 旗標，以目前使用者啟動，再處理工作列與圖示。
-5. 確認視窗出現、工作列有按鈕、顯示原廠彩色 G 圖示、滑鼠移上去有縮圖；核對 `repair-result.json` 的 `invariantsUnchanged` 為 `true`。
+3. 執行 `ControlCenterRepair.exe` 或桌面 **Control Center - Auto Repair** 捷徑。預設在背景檢查，不顯示例行修復視窗；仍須以目前登入的管理員帳戶手動同意正常 UAC。
+4. 正常的既有視窗直接還原／啟用，不重開、不重設 FirstTime。只有工作列或圖示異常則保留程序修復視窗。未執行且沒有 FirstTime 時直接啟動後檢查；隱藏、啟動身分或旗標造成異常時才進入備份、重設與重啟流程。讀取失敗不能當成正常，也不盲目修復。
+5. 核對視窗與工作列；`repair-result.json` 會記錄實際 `action`、檢查結果與前後一致性。正常完成不跳修復視窗，失敗才顯示簡短錯誤。
 
 完整包保留原廠 EXE 本身，不修改安裝器或簽章。[來源與驗證紀錄](docs/installer-verification.md)。原廠安裝器權利歸原廠，不套用本修復工具的 MIT 授權。
 
-## 每次開啟自動修復的新捷徑
+## 背景檢查與新捷徑
 
-完整解壓縮到固定位置後，開啟 `ControlCenterRepair.exe` 並按「建立桌面捷徑」，會建立桌面 **Control Center - Auto Repair** 捷徑。之後每次從這個捷徑開啟，會自動執行 `ControlCenterRepair.exe --launch`，不必再按修復按鈕；仍須手動同意正常 UAC 授權。成功後修復入口會自動關閉，失敗則保留視窗供查看結果。
+直接執行 EXE 或使用 `--launch` 都走背景模式。可對解壓縮後的 EXE 使用 Windows「傳送到 → 桌面（建立捷徑）」；也可執行 `ControlCenterRepair.exe --settings`，在管理介面按「建立桌面捷徑」。可選的 `Create-Shortcut.ps1` 只在腳本政策允許時使用。
 
-修復會重開原廠 GUI，請先完成其中正在操作的設定；重複點擊也可能再次重開 GUI。請保留完整解壓縮資料夾，不要刪除或移動後還沿用舊捷徑。
+每次先確認狀態，正常就略過修復；不殺掉正常 GUI、不覆蓋 FirstTime 備份，也不閃現修復主視窗。異常才依需要處理，失敗才顯示提示。受保護狀態的讀取與修復仍需手動 UAC，不會變更或略過安全政策；前一輪仍執行時重複點擊會略過。
 
-這是**每次從新捷徑開啟時重新套用修復**，不是改寫原廠永久修好。原廠舊捷徑、服務或 Windows 開機啟動不會自動改走這個入口，修復流程已改為編譯 EXE，不需要允許 PowerShell 腳本執行，也不會略過 UAC 或變更政策；尚未驗證重開機持續性。
+請保留完整解壓縮資料夾。只有新 EXE／捷徑會走這個流程，原廠舊捷徑、服務與開機啟動不會被攔截。這是條件式套用修復，不是永久改寫原廠本體；Windows 仍可能拒絕前景切換。
 
 ## 故障原因摘要
 
@@ -66,3 +66,5 @@
 回報問題請至 [Issues](https://github.com/kinostudio/gigabyte-control-center-window-fix/issues)，提供機型、Windows／原廠版本、雜湊核對結果與具體症狀。日誌可能含帳戶、路徑等資料，公開前先遮蔽；前一輪仍在修復時不要重複執行。
 
 MIT 僅適用修復程式碼與原創文件，原廠安裝器與圖示等維持原權利人所有；詳見[第三方說明](THIRD-PARTY-NOTICES.md)。本專案未獲 GIGABYTE 官方背書。
+
+beta.3 背景略過分支實測：2026-11-22 預檢為 0、動作 `reused-without-repair`，GUI PID 前後均為 89704，60% 上限與電源／服務一致。新版條件式異常分支與重新開機持續性尚未另行實機驗收。

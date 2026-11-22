@@ -61,10 +61,57 @@ static class ControlCenterWindowFix
         return IntPtr.Zero;
     }
     static void Check(bool condition) { if (!condition) throw new Exception("Self-check failed"); }
+    static bool MatchingIcon(IntPtr handle, Icon expected) {
+        if (handle == IntPtr.Zero) return false;
+        try {
+            using (var actual = Icon.FromHandle(handle).ToBitmap()) using (var wanted = expected.ToBitmap()) {
+                if (actual.Size != wanted.Size) return false;
+                for (int y=0;y<actual.Height;y++) for(int x=0;x<actual.Width;x++)
+                    if(actual.GetPixel(x,y).ToArgb()!=wanted.GetPixel(x,y).ToArgb()) return false;
+                return true;
+            }
+        } catch (ArgumentException) { return false; }
+    }
+    // 0: healthy; 4: visible current-user window needs style/icon repair; 5: no usable window.
+    static int Inspect(bool activate) {
+        int session=Process.GetCurrentProcess().SessionId;
+        var targets=new HashSet<int>();
+        foreach(var p in Process.GetProcessesByName("ControlCenter")) using(p) {
+            if(p.SessionId!=session)continue;
+            if(!IsTarget(p.MainModule.FileName))throw new Exception("Unexpected GUI path.");
+            using(var process=new ManagementObject("Win32_Process.Handle='"+p.Id+"'"))
+            using(var owner=process.InvokeMethod("GetOwner",null,null)) {
+                if(Convert.ToUInt32(owner["ReturnValue"])!=0)throw new Exception("Cannot verify owner.");
+                string account=Convert.ToString(owner["Domain"])+"\\"+Convert.ToString(owner["User"]);
+                if(!string.Equals(account,WindowsIdentity.GetCurrent().Name,StringComparison.OrdinalIgnoreCase))return 5;
+            }
+            targets.Add(p.Id);
+        }
+        IntPtr chosen=IntPtr.Zero;long best=-1;
+        EnumWindows(delegate(IntPtr w,IntPtr unused) {
+            uint pid;GetWindowThreadProcessId(w,out pid);if(!targets.Contains((int)pid))return true;
+            var name=new StringBuilder(256);GetClassName(w,name,name.Capacity);Rect rect;
+            if(!name.ToString().StartsWith("HwndWrapper[",StringComparison.Ordinal)||!IsWindowVisible(w)||!GetWindowRect(w,out rect))return true;
+            long score=IsIconic(w)?60000:Score(rect.Right-rect.Left,rect.Bottom-rect.Top,true);
+            if(score>best){best=score;chosen=w;}return true;
+        },IntPtr.Zero);
+        if(chosen==IntPtr.Zero)return 5;
+        long style=GetWindowLongPtr(chosen,ExStyle).ToInt64();
+        if((style&AppWindow)==0||(style&ToolWindow)!=0)return 4;
+        string icon=Path.Combine(Path.GetDirectoryName(Target),"icon.ico");
+        using(var large=new Icon(icon,GetSystemMetrics(11),GetSystemMetrics(12)))
+        using(var small=new Icon(icon,GetSystemMetrics(49),GetSystemMetrics(50))) {
+            if(!MatchingIcon(IconMessage(chosen,0x7F,1,IntPtr.Zero),large)||!MatchingIcon(IconMessage(chosen,0x7F,0,IntPtr.Zero),small))return 4;
+        }
+        if(activate){if(IsIconic(chosen))ShowWindow(chosen,9);SetForegroundWindow(chosen);}
+        return 0;
+    }
     [STAThread] static int Main(string[] args)
     {
         // This branch is pure: it never queries or changes a Windows application.
         if (args.Length == 1 && args[0] == "--self-test") {
+            Check(!MatchingIcon(IntPtr.Zero,SystemIcons.Application));
+            Check(MatchingIcon(SystemIcons.Application.Handle,SystemIcons.Application));
             Check(TaskbarStyle(ToolWindow | 0x80000) == (AppWindow | 0x80000));
             Check(TaskbarStyle(AppWindow) == AppWindow);
             Check(IsTarget(Target.ToUpperInvariant()));
@@ -82,6 +129,9 @@ static class ControlCenterWindowFix
             Check(!StyleCallFailed(IntPtr.Zero, 0));
             Check(!StyleCallFailed(new IntPtr(0x80000), 5));
             return 0;
+        }
+        if (args.Length == 1 && (args[0] == "--check" || args[0] == "--activate")) {
+            try { return Inspect(args[0] == "--activate"); } catch(Exception e) { Log("Inspection failed: "+e.Message); return 2; }
         }
         if (args.Length != 0) return 2;
         Log("Taskbar stage started. Executable=" + Application.ExecutablePath);
@@ -121,7 +171,7 @@ static class ControlCenterWindowFix
                         " size=" + (rect.Right - rect.Left) + "x" + (rect.Bottom - rect.Top) +
                         " visible=" + IsWindowVisible(window) + " exstyle=0x" + GetWindowLongPtr(window, ExStyle).ToInt64().ToString("X"));
                     if (!name.ToString().StartsWith("HwndWrapper[", StringComparison.Ordinal)) return true;
-                    long score = Score(rect.Right - rect.Left, rect.Bottom - rect.Top, IsWindowVisible(window));
+                    long score = IsIconic(window) ? 60000 : Score(rect.Right - rect.Left, rect.Bottom - rect.Top, IsWindowVisible(window));
                     if (score > best) { best = score; ready = window; chosenPid = (int)pid; }
                 } catch (ArgumentException) { } catch (InvalidOperationException) { } catch (Win32Exception windowError) { Log("Window query denied/failed: " + windowError.NativeErrorCode); }
                 return true;

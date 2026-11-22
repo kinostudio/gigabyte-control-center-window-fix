@@ -16,17 +16,19 @@ Community workaround for **GIGABYTE Control Center not showing, running in the b
 
 1. Download from [Releases](https://github.com/kinostudio/gigabyte-control-center-window-fix/releases), verify the checksum, and extract the **entire ZIP** to a writable folder. Do not run inside the archive or copy only one EXE.
 2. If Control Center is missing, verify your model in the [official download table](docs/supported-models.md), then manually run the original installer included in the full bundle. Review its own terms and any restart request. Installation and repair are separate steps; the repair tool never installs or reinstalls Control Center automatically.
-3. Finish any pending changes in Control Center. Run `ControlCenterRepair.exe` as your signed-in local administrator account and click **Repair and open Control Center**. Approve UAC manually using the same account. Cross-account administrator credentials and other installation paths are not tested.
-4. The tool closes only the verified OEM GUI in your current session, backs up and resets the `FirstTime` flag, restarts the GUI as the current user, and repairs its taskbar style/icon.
-5. Verify the window is visible, its taskbar button exists, the original G icon appears, and hovering shows a thumbnail. Check `repair-result.json` for `invariantsUnchanged: true`.
+3. Run `ControlCenterRepair.exe` (or the desktop **Control Center - Auto Repair** shortcut). The default launch checks in the background; it does not show a routine repair window. Approve normal UAC manually using your signed-in administrator account.
+4. A healthy existing GUI is restored/activated without restarting or resetting FirstTime. A visible current-user GUI with only style/icon defects receives window repair without restart. If no GUI is running and FirstTime is absent, the OEM GUI is started directly and inspected. Hidden/wrong-owner/startup defects use the backed-up flag reset and restart path only when needed. Unknown inspection errors stop with an error instead of speculative repair.
+5. Verify the window/taskbar visually. `repair-result.json` records the selected `action`, `preflightWindowState` and before/after invariant checks. Normal completion is silent; failure shows a concise message.
 
 The original installer is mirrored unchanged inside the full release ZIP. [Source, signature and version verification](docs/installer-verification.md). The OEM software remains subject to its own terms and is excluded from this project's MIT license.
 
-## One-click automatic repair shortcut
+## Background check and desktop shortcut
 
-Open `ControlCenterRepair.exe` and click **Create desktop shortcut** to create **Control Center - Auto Repair** on your desktop. Keep the extracted folder in a stable location. Every time you use this shortcut, `ControlCenterRepair.exe --launch` automatically starts the verified repair, asks for normal UAC approval, then closes its launcher on success. On failure the repair window stays open with diagnostics. It restarts the OEM GUI, so finish pending Control Center changes first. Launching again can restart an already-running GUI.
+The default EXE launch and `--launch` both run in the background. To create a shortcut, use Windows **Send to → Desktop (create shortcut)** on the extracted EXE, or run `ControlCenterRepair.exe --settings` and click **Create desktop shortcut**. Keep the extracted folder in a stable location. The optional `Create-Shortcut.ps1` is only a convenience when your script policy permits it.
 
-This automates the workaround on every launch **through this shortcut**. It does not intercept the vendor's original shortcuts, services or Windows startup, and does not remove the underlying OEM bug. The startup repair runs as a compiled EXE and does not require PowerShell script execution; it does not suppress UAC or change script execution policy. Reboot persistence is not yet verified.
+Each launch checks first and repairs only an abnormal state. The existing healthy GUI is not killed, no flag backup is overwritten on the skip path, and the normal repair form does not flash. UAC is still required for protected state checks/repair; this version does not bypass or change security policy. Concurrent shortcut launches are ignored while the first check is running. An error prompt may appear on failure.
+
+Only launches through this EXE/shortcut use this workflow. Vendor shortcuts, services and Windows startup remain unchanged. This is a conditional workaround, not a permanent patch of the OEM binary; foreground activation remains subject to Windows rules.
 
 ## Why the window can disappear
 
@@ -46,9 +48,9 @@ The repair currently requires the exact verified main EXE SHA-256, installation 
 
 ## What changes and what is checked
 
-- Changes: current GUI lifetime, backed-up `FirstTime` UI flag, current-process window style and icon handles.
+- Changes only when needed: GUI restart for startup faults, backed-up `FirstTime` flag reset, or current-process style/icon repair. Healthy state is left intact apart from normal restore/activation.
 - No patching of OEM EXE/DLL, no injection, no driver installation, no new startup item or persistent service configuration.
-- No charge-policy, charge-limit, CPU/GPU-mode or power-plan write commands. The OEM GUI itself is restarted, so charge policy/limit, active power plan and SMV4_Service state are queried before and after. A difference is reported as failure; the tool does not silently write settings back.
+- No charge-policy, charge-limit, CPU/GPU-mode or power-plan write commands. Charge policy/limit, active power plan and SMV4_Service state are queried before and after every completed check, including repair-skipped runs. A difference is reported as failure; the tool does not silently write settings back.
 - Window changes are temporary. Reboot, OEM updates or using the original launcher can restore the behavior. Run the repair entry again if needed; permanent startup repair is not implemented.
 
 ## Build and verification
@@ -70,3 +72,5 @@ Earlier local repair: user confirmed window, taskbar G icon and thumbnail; logs 
 Use [Issues](https://github.com/kinostudio/gigabyte-control-center-window-fix/issues) and include model, Windows version, installer/internal EXE versions, hash match result, and whether the GUI process runs with no window, no taskbar button, or only a wrong icon. Redact usernames, paths and other personal data from logs before posting. Avoid repeating repair while a previous repair is still running.
 
 MIT applies to the repair code and original documentation only. OEM installer, icons and all vendor components retain their owners' rights. See [third-party notice](THIRD-PARTY-NOTICES.md). No affiliation with or endorsement by GIGABYTE is claimed.
+
+Beta.3 background skip validation on 2026-11-22: preflight state 0, action `reused-without-repair`, GUI PID 89704 unchanged, and charge limit 60% / power plan / service unchanged. New conditional abnormal-state paths and reboot persistence have not yet received separate real-device acceptance.

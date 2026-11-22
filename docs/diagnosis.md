@@ -100,3 +100,13 @@ Earlier user acceptance: visible GUI, taskbar G icon and thumbnail; native recor
 On 2026-11-22 at 19:46 (Asia/Taipei), the desktop shortcut invoked the compiled startup helper with manual UAC approval. The record confirmed current-user GUI ownership, APPWINDOW style, IconReadback=True and unchanged charge policy 4 / limit 60%, power plan and service. ForegroundRequest=False / IsForeground=False: Windows did not grant the normal foreground request. This establishes the automatic repair sequence and invariant checks, not guaranteed foreground activation or reboot persistence.
 
 2026-11-22 19:46（台灣時間），桌面捷徑透過手動 UAC 啟動編譯版修復工具，完成目前使用者 GUI、工作列樣式、圖示讀回及 60% 上限／電源／服務前後核對。該輪前景要求為 False，因此不宣稱可強制置前或已驗證重開機。使用原廠舊入口仍不會自動套用；新捷徑每次重新套用。
+
+### beta.3 conditional background launch / 條件式背景啟動
+
+Default launch is silent except for UAC and failures. Preflight checks current-session process path/owner, visible WPF window, taskbar style bits, and pixel comparison of both window icons against the installed OEM icon. Minimized healthy windows are restored rather than restarted. Check state 0 means reuse/activate; state 4 means window-only repair without restarting; state 5 means no usable current-user window, requiring startup handling. Unknown checks stop with an error. No running GUI plus an absent FirstTime flag takes a direct-start-and-inspect path before any reset is considered.
+
+預設不顯示修復主視窗，正常完成也不跳通知；UAC 與失敗提示除外。預檢查核目前工作階段的程序路徑／擁有者、可見 WPF 視窗、工作列樣式，以及大小圖示與既有原廠圖示的像素比對。正常但縮小的視窗只還原，不重啟。0 為正常略過，4 為保留程序修復視窗，5 才進入啟動問題處理；未知錯誤停止。沒有程序且 FirstTime 不存在時，先直接啟動檢查，不先行改登錄值。
+
+`repair-result.json` records `action`: `reused-without-repair`, `started-without-repair`, `window-repair-only; GUI retained`, or `startup-repair-and-restart`. FirstTime backup/reset happens only on the startup-repair path. Charge/power/service snapshots are still compared. `--settings` explicitly opens the management UI; it is not the default desktop workflow.
+
+The beta.3 healthy-state run at 19:58 on 2026-11-22 (Asia/Taipei) recorded `ready; repair skipped`, `preflightWindowState: 0`, action `reused-without-repair`, and unchanged PID 89704. Charge policy 4 / limit 60%, active plan and service matched before/after. No FirstTime backup/reset or GUI restart occurred. New abnormal-state decisions are not represented as separately hardware-tested.

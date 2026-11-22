@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
@@ -11,7 +13,32 @@ static class ControlCenterRepair
 {
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     static extern IntPtr ShellExecuteW(IntPtr owner, string verb, string file, string parameters, string directory, int show);
-    static bool AutoLaunch(string[] args) { return args.Length == 1 && args[0] == "--launch"; }
+    static bool AutoLaunch(string[] args) { return args.Length == 0 || (args.Length == 1 && args[0] == "--launch"); }
+    static bool Success(string status) { return status.StartsWith("ready;") || status.StartsWith("restarted-as-user"); }
+    static int BackgroundLaunch() {
+        bool created;
+        using(var mutex=new Mutex(true,@"Local\ControlCenterBackgroundLaunch-"+Process.GetCurrentProcess().SessionId,out created)) {
+            if(!created)return 0;
+            try {
+                string root=AppDomain.CurrentDomain.BaseDirectory,helper=Path.Combine(root,"ControlCenterStartupRepair.exe");
+                if(!File.Exists(helper))throw new FileNotFoundException("完整解壓縮後再執行 / Extract the complete bundle first.");
+                var started=DateTime.UtcNow;
+                var info=new ProcessStartInfo(helper) {UseShellExecute=true,Verb="runas",WorkingDirectory=root,WindowStyle=ProcessWindowStyle.Hidden};
+                using(var child=Process.Start(info)) {
+                    if(!child.WaitForExit(180000))throw new Exception("檢查逾時，背景程序可能仍在執行，請查閱日誌勿重複啟動。 / Timed out; inspect logs before retrying.");
+                    string path=Path.Combine(root,"repair-result.json");
+                    if(!File.Exists(path)||File.GetLastWriteTimeUtc(path)<started)throw new Exception("未取得本次檢查結果 / No current check result.");
+                    string json=File.ReadAllText(path,Encoding.UTF8);
+                    if(child.ExitCode!=0||!Success(Status(json))) {
+                        var report=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(json);
+                        object error;throw new Exception(report.TryGetValue("error",out error)?Convert.ToString(error):"請查看 repair-result.json / Check repair-result.json.");
+                    }
+                }
+                return 0;
+            }catch(Exception e){MessageBox.Show(e.Message,"Control Center 啟動失敗 / Launch failed",MessageBoxButtons.OK,MessageBoxIcon.Warning);return 1;}
+            finally{mutex.ReleaseMutex();}
+        }
+    }
     static string Status(string json) {
         var values = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
         object value;
@@ -20,20 +47,22 @@ static class ControlCenterRepair
     [STAThread] static int Main(string[] args)
     {
         if (args.Length == 1 && args[0] == "--self-test") {
-            if (!AutoLaunch(new[] { "--launch" }) || AutoLaunch(new string[0]) || AutoLaunch(new[] { "--launch", "extra" })) return 1;
+            if (!AutoLaunch(new[] { "--launch" }) || !AutoLaunch(new string[0]) || AutoLaunch(new[] { "--launch", "extra" })) return 1;
+            if(!Success("ready; repair skipped")||!Success("restarted-as-user; awaiting visual/taskbar acceptance")||Success("failed"))return 1;
             if (Status("{\"status\":\"failed\"}") != "failed" ||
                 Status("{\"status\":\"restarted-as-user; awaiting visual/taskbar acceptance\"}").StartsWith("restarted-as-user") == false) return 1;
             return 0;
         }
         bool autoLaunch = AutoLaunch(args);
-        if (args.Length != 0 && !autoLaunch) return 2;
+        if(autoLaunch)return BackgroundLaunch();
+        if (args.Length != 1 || args[0] != "--settings") return 2;
         string root = AppDomain.CurrentDomain.BaseDirectory;
         string repair = Path.Combine(root, "ControlCenterStartupRepair.exe");
         string result = Path.Combine(root, "repair-result.json");
         Application.EnableVisualStyles();
         var form = new Form { Text = "Control Center Window Fix / 視窗修復", ClientSize = new Size(680, 350), StartPosition = FormStartPosition.CenterScreen, MaximizeBox = false, FormBorderStyle = FormBorderStyle.FixedDialog };
         var description = new Label { Left = 20, Top = 20, Width = 640, Height = 140,
-            Text = "備份並重設原廠 FirstTime 介面旗標，再以登入使用者重新開啟原廠主程式。\r\n\r\n會關閉目前的 Control Center 介面，請先完成介面中的操作。\r\n前後核對服務與充電設定；不修改原廠程式檔。\r\n\r\nRestarts the verified OEM GUI and repairs its window/taskbar.\r\nBacks up FirstTime; checks charge, power plan and service before/after." };
+            Text = "先檢查視窗、工作列與圖示，正常時略過修復。\r\n只有必要時才重開原廠介面，請先完成其中正在操作的設定。\r\n前後核對服務與充電設定；不修改原廠程式檔。\r\n\r\nChecks first, reuses a healthy window and repairs only when needed.\r\nCharge, power plan and service are checked before/after." };
         var button = new Button { Text = "修復並開啟 / Repair and open Control Center", Left = 20, Top = 170, Width = 440, Height = 35 };
         var shortcut = new Button { Text = "建立桌面捷徑 / Create desktop shortcut", Left = 20, Top = 210, Width = 440, Height = 35 };
         shortcut.Click += delegate {
@@ -50,7 +79,7 @@ static class ControlCenterRepair
             } catch (Exception e) { MessageBox.Show(form, e.Message); }
         };
         var state = new Label { Left = 20, Top = 260, Width = 640, Height = 75, Text = "尚未執行 / Ready. 按下按鈕後請手動完成 UAC 授權。Approve UAC manually." };
-        var timer = new Timer { Interval = 500 };
+        var timer = new System.Windows.Forms.Timer { Interval = 500 };
         DateTime started = DateTime.MaxValue;
         timer.Tick += delegate {
             try {
@@ -62,8 +91,7 @@ static class ControlCenterRepair
                 if (!File.Exists(result) || File.GetLastWriteTimeUtc(result) < started) return;
                 string status = Status(File.ReadAllText(result, Encoding.UTF8));
                 timer.Stop(); button.Enabled = true;
-                if (autoLaunch && status.StartsWith("restarted-as-user")) { form.Close(); return; }
-                state.Text = status.StartsWith("restarted-as-user") ?
+                state.Text = Success(status) ?
                     "完成前後核對／Checks passed. 請確認視窗、圖示與縮圖。\r\nPlease verify the window, taskbar icon and thumbnail visually." :
                     "修復未完成 / Failed. See repair-result.json and taskbar-diagnostic.txt.";
             } catch (IOException) { } catch (ArgumentException) { }
@@ -84,7 +112,6 @@ static class ControlCenterRepair
             timer.Start();
         };
         form.Controls.Add(description); form.Controls.Add(button); form.Controls.Add(shortcut); form.Controls.Add(state);
-        if (autoLaunch) form.Shown += delegate { form.BeginInvoke(new Action(delegate { button.PerformClick(); })); };
         form.FormClosed += delegate { timer.Dispose(); };
         Application.Run(form);
         return 0;
