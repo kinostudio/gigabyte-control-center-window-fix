@@ -1,0 +1,7 @@
+/dist/
+*.exe
+*.zip
+repair-result.json
+FirstTime-backup.json
+taskbar-diagnostic.txt
+taskbar-window-result.txt*
