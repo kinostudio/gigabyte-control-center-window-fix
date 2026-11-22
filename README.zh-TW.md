@@ -68,3 +68,9 @@
 MIT 僅適用修復程式碼與原創文件，原廠安裝器與圖示等維持原權利人所有；詳見[第三方說明](THIRD-PARTY-NOTICES.md)。本專案未獲 GIGABYTE 官方背書。
 
 beta.3 背景略過分支實測：2026-11-22 預檢為 0、動作 `reused-without-repair`，GUI PID 前後均為 89704，60% 上限與電源／服務一致。新版條件式異常分支與重新開機持續性尚未另行實機驗收。
+
+## 啟動時顯示在前方／beta.4
+
+入口透過 Windows `AllowSetForegroundWindow`，只把此次使用者啟動的前景權限傳給指定修復程序，再傳給實際執行啟用的視窗工具。不使用對所有程序授權、永久置頂、模擬輸入、執行緒輸入綁定或更改前景鎖定設定。請親自點新捷徑；無人操作的背景啟動可能沒有可傳遞的前景權限。若中途操作其他程式，Windows 仍可能拒絕切到前景。授權與實際前景結果分開記錄，不把工作列修復成功當成已成功置前。
+
+[Microsoft 官方前景權限說明](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-allowsetforegroundwindow)。

@@ -13,6 +13,7 @@ static class ControlCenterRepair
 {
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     static extern IntPtr ShellExecuteW(IntPtr owner, string verb, string file, string parameters, string directory, int show);
+    [DllImport("user32.dll",SetLastError=true)] static extern bool AllowSetForegroundWindow(int pid);
     static bool AutoLaunch(string[] args) { return args.Length == 0 || (args.Length == 1 && args[0] == "--launch"); }
     static bool Success(string status) { return status.StartsWith("ready;") || status.StartsWith("restarted-as-user"); }
     static int BackgroundLaunch() {
@@ -25,6 +26,9 @@ static class ControlCenterRepair
                 var started=DateTime.UtcNow;
                 var info=new ProcessStartInfo(helper) {UseShellExecute=true,Verb="runas",WorkingDirectory=root,WindowStyle=ProcessWindowStyle.Hidden};
                 using(var child=Process.Start(info)) {
+                    // Pass only this user-initiated launch's foreground right to its helper.
+                    bool granted=AllowSetForegroundWindow(child.Id);
+                    File.WriteAllText(Path.Combine(root,"foreground-launch.json"),new JavaScriptSerializer().Serialize(new {timestamp=DateTimeOffset.Now.ToString("o"),pid=child.Id,granted=granted}),Encoding.UTF8);
                     if(!child.WaitForExit(180000))throw new Exception("檢查逾時，背景程序可能仍在執行，請查閱日誌勿重複啟動。 / Timed out; inspect logs before retrying.");
                     string path=Path.Combine(root,"repair-result.json");
                     if(!File.Exists(path)||File.GetLastWriteTimeUtc(path)<started)throw new Exception("未取得本次檢查結果 / No current check result.");

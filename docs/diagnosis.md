@@ -110,3 +110,9 @@ Default launch is silent except for UAC and failures. Preflight checks current-s
 `repair-result.json` records `action`: `reused-without-repair`, `started-without-repair`, `window-repair-only; GUI retained`, or `startup-repair-and-restart`. FirstTime backup/reset happens only on the startup-repair path. Charge/power/service snapshots are still compared. `--settings` explicitly opens the management UI; it is not the default desktop workflow.
 
 The beta.3 healthy-state run at 19:58 on 2026-11-22 (Asia/Taipei) recorded `ready; repair skipped`, `preflightWindowState: 0`, action `reused-without-repair`, and unchanged PID 89704. Charge policy 4 / limit 60%, active plan and service matched before/after. No FirstTime backup/reset or GUI restart occurred. New abnormal-state decisions are not represented as separately hardware-tested.
+
+### Foreground diagnostics / 前景診斷
+
+`foreground-launch.json` records whether the user-initiated launcher successfully delegated foreground permission to its startup child. `repair-result.json` records delegation to the window helper. On a healthy reuse path, `activation-result.json` records actual `requested` and `isForeground` results. On a repair path, the same actual foreground result remains in `taskbar-window-result.txt`. These are local logs and are not included in release archives. An icon or taskbar success does not imply foreground success. Permission expires under Windows rules when the user generates unrelated input or grants another process foreground rights.
+
+以上三種紀錄分別確認入口授權、子程序授權及真正的前景結果；視窗修復分支仍可查 taskbar-window-result.txt。工作列／圖示成功不能推論前景成功，日誌不納入公開包。

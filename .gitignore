@@ -5,3 +5,5 @@ repair-result.json
 FirstTime-backup.json
 taskbar-diagnostic.txt
 taskbar-window-result.txt*
+foreground-launch.json
+activation-result.json

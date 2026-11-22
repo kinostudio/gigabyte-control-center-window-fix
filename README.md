@@ -74,3 +74,9 @@ Use [Issues](https://github.com/kinostudio/gigabyte-control-center-window-fix/is
 MIT applies to the repair code and original documentation only. OEM installer, icons and all vendor components retain their owners' rights. See [third-party notice](THIRD-PARTY-NOTICES.md). No affiliation with or endorsement by GIGABYTE is claimed.
 
 Beta.3 background skip validation on 2026-11-22: preflight state 0, action `reused-without-repair`, GUI PID 89704 unchanged, and charge limit 60% / power plan / service unchanged. New conditional abnormal-state paths and reboot persistence have not yet received separate real-device acceptance.
+
+## Foreground activation / beta.4
+
+The launcher's foreground permission is delegated only to its specific startup helper, then to the specific window helper that performs activation, using Windows AllowSetForegroundWindow. This does not use ASFW_ANY, permanent topmost, synthetic input, thread-input attachment or a foreground-lock setting change. A normal user click on the shortcut is important; unattended background launches may have no foreground right to delegate. Windows can still reject activation, especially after the user switches to another app. The launcher logs the grant and the window helper records the actual foreground result separately from taskbar repair success.
+
+[Microsoft: AllowSetForegroundWindow](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-allowsetforegroundwindow) · [SetForegroundWindow](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setforegroundwindow)

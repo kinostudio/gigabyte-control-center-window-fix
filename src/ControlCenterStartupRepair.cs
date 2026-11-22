@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Management;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Text;
@@ -15,6 +16,8 @@ static class ControlCenterStartupRepair {
     const string Key = @"SOFTWARE\GIGABYTE\SmartManager";
     static readonly string Root = AppDomain.CurrentDomain.BaseDirectory;
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer();
+    [DllImport("user32.dll",SetLastError=true)] static extern bool AllowSetForegroundWindow(int pid);
+    static bool LastForegroundGrant;
     static string Hash(string file) { using(var sha=SHA256.Create()) using(var s=File.OpenRead(file)) return BitConverter.ToString(sha.ComputeHash(s)).Replace("-", ""); }
     static bool SameCharge(int[] a,int[] b) { return a[0]==b[0] && a[1]==b[1]; }
     static int[] Charge() {
@@ -50,6 +53,7 @@ static class ControlCenterStartupRepair {
     static int WindowState(string helper,bool activate) {
         var info=Start(helper);info.Arguments=activate?"--activate":"--check";
         using(var p=Process.Start(info)) {
+            if(activate)LastForegroundGrant=AllowSetForegroundWindow(p.Id);
             if(!p.WaitForExit(15000))throw new Exception("Window inspection timed out; no speculative repair applied.");
             if(p.ExitCode!=0&&p.ExitCode!=4&&p.ExitCode!=5)throw new Exception("Window inspection failed; see taskbar-diagnostic.txt.");
             return p.ExitCode;
@@ -94,6 +98,9 @@ static class ControlCenterStartupRepair {
             report["preflightWindowState"]=windowState;
             if(windowState==0) {
                 if(WindowState(helper,true)!=0)throw new Exception("Window changed during activation; inspect before retrying.");
+                report["foregroundGrantToWindowHelper"]=LastForegroundGrant;
+                string activation=Path.Combine(Root,"activation-result.json");
+                if(File.Exists(activation))report["activation"]=Json.DeserializeObject(File.ReadAllText(activation));
                 report["action"]=report.ContainsKey("directStartAttempted")?"started-without-repair":"reused-without-repair";
                 report["status"]="ready; repair skipped";
             } else {
@@ -124,6 +131,7 @@ static class ControlCenterStartupRepair {
             } else { report["action"]="window-repair-only; GUI retained"; }
             string result=Path.Combine(Root,"taskbar-window-result.txt");if(File.Exists(result))File.Delete(result);
             using(var job=Process.Start(Start(helper))) {
+                report["foregroundGrantToWindowHelper"]=AllowSetForegroundWindow(job.Id);
                 var deadline=DateTime.UtcNow.AddSeconds(60);
                 while(!File.Exists(result)) {
                     if(job.HasExited)throw new Exception("Taskbar stage exited; inspect taskbar-diagnostic.txt.");

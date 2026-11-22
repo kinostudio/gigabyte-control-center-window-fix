@@ -9,6 +9,7 @@ using System.Security.Principal;
 using System.Text;
 using System.Collections.Generic;
 using System.Threading;
+using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 static class ControlCenterWindowFix
@@ -103,7 +104,13 @@ static class ControlCenterWindowFix
         using(var small=new Icon(icon,GetSystemMetrics(49),GetSystemMetrics(50))) {
             if(!MatchingIcon(IconMessage(chosen,0x7F,1,IntPtr.Zero),large)||!MatchingIcon(IconMessage(chosen,0x7F,0,IntPtr.Zero),small))return 4;
         }
-        if(activate){if(IsIconic(chosen))ShowWindow(chosen,9);SetForegroundWindow(chosen);}
+        if(activate){
+            if(IsIconic(chosen))ShowWindow(chosen,9);
+            bool requested=SetForegroundWindow(chosen),foreground=GetForegroundWindow()==chosen;
+            uint pid;GetWindowThreadProcessId(chosen,out pid);
+            File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"activation-result.json"),new JavaScriptSerializer().Serialize(new {timestamp=DateTimeOffset.Now.ToString("o"),pid=pid,requested=requested,isForeground=foreground}));
+            Log("Activation: ForegroundRequest="+requested+" IsForeground="+foreground);
+        }
         return 0;
     }
     [STAThread] static int Main(string[] args)
