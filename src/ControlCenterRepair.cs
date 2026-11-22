@@ -18,26 +18,22 @@ static class ControlCenterRepair
     static bool AutoLaunch(string[] args) { return args.Length == 0 || (args.Length == 1 && args[0] == "--launch"); }
     static bool Success(string status) { return status.StartsWith("ready;") || status.StartsWith("restarted-as-user"); }
     const string Target = @"C:\Program Files\ControlCenter\ControlCenter.exe";
-    static void VerifyTarget(string root) {
+    const string OemLauncher = @"C:\Program Files\ControlCenter\ShowAP.exe";
+    static void VerifyTarget(string root,string target=Target) {
         var json=new JavaScriptSerializer();string expected=null;
         foreach(var entry in json.Deserialize<List<Dictionary<string,string>>>(File.ReadAllText(Path.Combine(root,"original-binary-hashes.json"))))
-            if(string.Equals(entry["Path"],Target,StringComparison.OrdinalIgnoreCase))expected=entry["Hash"];
-        using(var sha=SHA256.Create())using(var file=File.OpenRead(Target))
-            if(!string.Equals(expected,BitConverter.ToString(sha.ComputeHash(file)).Replace("-",""),StringComparison.OrdinalIgnoreCase))throw new Exception("未驗證的原廠版本 / Unverified OEM version; nothing started.");
+            if(string.Equals(entry["Path"],target,StringComparison.OrdinalIgnoreCase))expected=entry["Hash"];
+        using(var sha=SHA256.Create())using(var file=File.OpenRead(target))
+            if(!string.Equals(expected,BitConverter.ToString(sha.ComputeHash(file)).Replace("-",""),StringComparison.OrdinalIgnoreCase))throw new Exception("原廠版本未核對，未套用修復 / Unverified OEM version; no repair applied.");
     }
-    static int ShowAndCheck(string root) {
-        var info=new ProcessStartInfo(Path.Combine(root,"ControlCenterTaskbarFix.exe"),"--show") {UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=root};
+    static int CheckWindow(string root) {
+        var info=new ProcessStartInfo(Path.Combine(root,"ControlCenterTaskbarFix.exe"),"--check") {UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=root};
         using(var p=Process.Start(info)) {
-            AllowSetForegroundWindow(p.Id);
             if(!p.WaitForExit(10000))throw new Exception("視窗檢查逾時 / Window check timed out; inspect logs before retrying.");
             return p.ExitCode;
         }
     }
-    static bool GuiExists() {
-        bool found=false;int session=Process.GetCurrentProcess().SessionId;
-        foreach(var p in Process.GetProcessesByName("ControlCenter"))using(p){if(p.SessionId==session)found=true;}
-        return found;
-    }
+    static bool StableFault(int state,int consecutive,long elapsedMs) { return state!=0&&consecutive>=2&&elapsedMs>=8000; }
     static int BackgroundLaunch() {
         bool created;
         using(var mutex=new Mutex(true,@"Local\ControlCenterBackgroundLaunch-"+Process.GetCurrentProcess().SessionId,out created)) {
@@ -47,18 +43,25 @@ static class ControlCenterRepair
                 if(!File.Exists(helper))throw new FileNotFoundException("完整解壓縮後再執行 / Extract the complete bundle first.");
                 var elapsed=Stopwatch.StartNew();
                 var started=DateTime.UtcNow;
-                VerifyTarget(root);
-                int quick=ShowAndCheck(root);bool directStart=false;
-                if(quick==5&&!GuiExists()) {
-                    using(var app=Process.Start(new ProcessStartInfo(Target) {UseShellExecute=true,WorkingDirectory=Path.GetDirectoryName(Target),WindowStyle=ProcessWindowStyle.Normal})) {
-                        directStart=true;
-                        // Let the OEM create its window before considering an unnecessary restart.
-                        do {Thread.Sleep(500);quick=ShowAndCheck(root);}while(quick==5&&!app.HasExited&&elapsed.Elapsed<TimeSpan.FromSeconds(15));
-                    }
+                VerifyTarget(root,OemLauncher);
+                using(var original=Process.Start(new ProcessStartInfo(OemLauncher) {UseShellExecute=true,WorkingDirectory=Path.GetDirectoryName(OemLauncher),WindowStyle=ProcessWindowStyle.Normal})) {
+                    AllowSetForegroundWindow(original.Id);
                 }
-                File.WriteAllText(Path.Combine(root,"launch-result.json"),new JavaScriptSerializer().Serialize(new {started=started.ToString("o"),firstCheck=quick,directStart=directStart,elapsedMs=elapsed.ElapsedMilliseconds,repairNeeded=quick!=0}),Encoding.UTF8);
+                long submittedMs=elapsed.ElapsedMilliseconds;
+                var samples=new List<object>();
+                File.WriteAllText(Path.Combine(root,"launch-result.json"),new JavaScriptSerializer().Serialize(new {started=started.ToString("o"),originalLauncher="ShowAP.exe",submittedMs=submittedMs,status="OEM launched; background inspection pending"}),Encoding.UTF8);
+                // Nothing below this point gates the vendor launch or manipulates a healthy window.
+                VerifyTarget(root);
+                int quick=-1,previous=-1,consecutive=0;
+                do {
+                    Thread.Sleep(500);quick=CheckWindow(root);
+                    if(quick!=0&&quick!=2&&quick!=4&&quick!=5)throw new Exception("視窗檢查結果無效 / Invalid inspection result.");
+                    consecutive=quick==previous?consecutive+1:1;previous=quick;
+                    samples.Add(new {state=quick,elapsedMs=elapsed.ElapsedMilliseconds});
+                }while(quick!=0&&!StableFault(quick,consecutive,elapsed.ElapsedMilliseconds-submittedMs));
+                File.WriteAllText(Path.Combine(root,"launch-result.json"),new JavaScriptSerializer().Serialize(new {started=started.ToString("o"),originalLauncher="ShowAP.exe",submittedMs=submittedMs,firstCheck=quick,samples=samples,elapsedMs=elapsed.ElapsedMilliseconds,repairNeeded=quick!=0}),Encoding.UTF8);
                 if(quick==0) {
-                    File.WriteAllText(Path.Combine(root,"repair-result.json"),new JavaScriptSerializer().Serialize(new {started=started.ToString("o"),status="ready; repair skipped",action=directStart?"fast-started-without-repair":"fast-reused-without-repair",elapsedMs=elapsed.ElapsedMilliseconds,invariantsChecked=false,note="Read-only window checks only; no registry, service, power or charge writes."}),Encoding.UTF8);
+                    File.WriteAllText(Path.Combine(root,"repair-result.json"),new JavaScriptSerializer().Serialize(new {started=started.ToString("o"),status="ready; repair skipped",action="ShowAP-first; background check passed",submittedMs=submittedMs,elapsedMs=elapsed.ElapsedMilliseconds,invariantsChecked=false,note="Vendor launcher ran first. Background checks did not change window, registry, service, power or charge settings."}),Encoding.UTF8);
                     return 0;
                 }
                 if(quick!=2&&quick!=4&&quick!=5)throw new Exception("視窗檢查結果無效 / Invalid inspection result.");
@@ -77,7 +80,7 @@ static class ControlCenterRepair
                     }
                 }
                 return 0;
-            }catch(Exception e){MessageBox.Show(e.Message,"Control Center 啟動失敗 / Launch failed",MessageBoxButtons.OK,MessageBoxIcon.Warning);return 1;}
+            }catch(Exception e){MessageBox.Show(e.Message,"Control Center 檢查提示 / Check notice",MessageBoxButtons.OK,MessageBoxIcon.Warning);return 1;}
             finally{mutex.ReleaseMutex();}
         }
     }
@@ -89,6 +92,7 @@ static class ControlCenterRepair
     [STAThread] static int Main(string[] args)
     {
         if (args.Length == 1 && args[0] == "--self-test") {
+            if(StableFault(4,2,1000)||StableFault(5,1,9000)||StableFault(0,10,9000)||!StableFault(4,2,8000))return 1;
             if (!AutoLaunch(new[] { "--launch" }) || !AutoLaunch(new string[0]) || AutoLaunch(new[] { "--launch", "extra" })) return 1;
             if(!Success("ready; repair skipped")||!Success("restarted-as-user; awaiting visual/taskbar acceptance")||Success("failed"))return 1;
             if (Status("{\"status\":\"failed\"}") != "failed" ||

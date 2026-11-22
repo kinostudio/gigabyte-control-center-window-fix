@@ -107,7 +107,9 @@ static class ControlCenterWindowFix
             using(var owner=process.InvokeMethod("GetOwner",null,null)) {
                 if(Convert.ToUInt32(owner["ReturnValue"])!=0)throw new Exception("Cannot verify owner.");
                 string account=Convert.ToString(owner["Domain"])+"\\"+Convert.ToString(owner["User"]);
-                if(!string.Equals(account,WindowsIdentity.GetCurrent().Name,StringComparison.OrdinalIgnoreCase))return 5;
+                if(!string.Equals(account,WindowsIdentity.GetCurrent().Name,StringComparison.OrdinalIgnoreCase)) {
+                    Log("Inspection ignored a different-owner GUI: PID="+p.Id);continue;
+                }
             }
             targets.Add(p.Id);
         }

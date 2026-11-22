@@ -124,3 +124,7 @@ The earlier beta.4 failure recorded startup at 20:33:43 and taskbar readiness at
 前一版十秒包含檢查與原廠初始化，不能全部歸為判斷時間。新版將原廠啟動／顯示提前，正常略過受保護查詢；必要修復仍保留前後核對。新增 launch-result.json 及受保護路徑的分段時間，與 activation-result.json 一起判讀。快速正常路徑沒有韌體前後核對，不會虛報設定驗證。
 
 At 20:45 (Asia/Taipei) the complete fast launch reused GUI PID 57656 without restart, recorded firstCheck=0, repairNeeded=false, elapsedMs=1892 and invariantsChecked=false. The selected visible main HWND was 1446074 with style 0xC0000. Earlier --show scans included hidden auxiliary windows and could report a false defect even while --check reported healthy; visible windows now outrank all hidden candidates. This was verified through the complete launcher, not just a standalone probe. The automated background launch still recorded a denied foreground request; only a user-click acceptance can establish the desired front-of-screen behavior.
+
+### User-reported slow beta.5 run / 使用者慢速回報
+
+The actual run at 21:11 on 2026-11-22 (Asia/Taipei) had quick state 4 at 983 ms, then protected preflight state 5 and `startup-repair-and-restart`, total protected time 10314 ms. It did successfully record foreground and icon readback with charge limit 60%, plan and service unchanged. Thus a warm healthy benchmark was insufficient evidence of user-facing speed. Beta.6 starts the actual vendor ShowAP before any inspection, samples read-only state afterward, and records submission separately from completion. Direct user acceptance is pending, not assumed from submission timing.

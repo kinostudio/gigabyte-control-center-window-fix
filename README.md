@@ -2,6 +2,8 @@
 
 [繁體中文說明](README.zh-TW.md) · [Download / 下載](https://github.com/kinostudio/gigabyte-control-center-window-fix/releases) · [Diagnosis / 診斷](docs/diagnosis.md)
 
+**Candidate beta.6 / ShowAP-first:** this branch calls the installed, hash-verified OEM `ShowAP.exe` as the first launch step. Only afterward does it perform read-only background inspection. Manual comparison against directly launching ShowAP is pending; this candidate is not yet a published release.
+
 Community workaround for **GIGABYTE Control Center not showing, running in the background with no window, missing taskbar icon or thumbnail, and an incorrect taskbar icon** on legacy AERO / AORUS laptops. 中文：技嘉 Control Center 打不開、無法顯示、背景執行但沒視窗、工作列圖示或縮圖消失。
 
 **Tested on AERO 15 KB with installer version 24.12.25.01 and internal ControlCenter.exe version 24.12.24.01.** This is an independent repair utility, not an official GIGABYTE patch or a replacement for modern GCC / GiMATE. One-device success does not establish that every community report has the same cause.
@@ -16,7 +18,7 @@ Community workaround for **GIGABYTE Control Center not showing, running in the b
 
 1. Download from [Releases](https://github.com/kinostudio/gigabyte-control-center-window-fix/releases), verify the checksum, and extract the **entire ZIP** to a writable folder. Do not run inside the archive or copy only one EXE.
 2. If Control Center is missing, verify your model in the [official download table](docs/supported-models.md), then manually run the original installer included in the full bundle. Review its own terms and any restart request. Installation and repair are separate steps; the repair tool never installs or reinstalls Control Center automatically.
-3. Run `ControlCenterRepair.exe` (or the desktop **Control Center - Auto Repair** shortcut). The default launch checks in the background; it does not show a routine repair window. A healthy fast-path launch does not request elevation. Approve normal UAC manually only if protected diagnosis/repair is needed.
+3. Run `ControlCenterRepair.exe` (or the desktop **Control Center - Auto Repair** shortcut). The default launch first invokes the original ShowAP, then checks in the background without a routine repair window. A healthy fast-path launch does not request elevation. Approve normal UAC manually only if protected diagnosis/repair is needed.
 4. A healthy existing GUI is restored/activated without restarting or resetting FirstTime. A visible current-user GUI with only style/icon defects receives window repair without restart. If no GUI is running, the OEM GUI is started directly first, then its window is shown and inspected before any protected repair. Hidden/wrong-owner/startup defects use the backed-up flag reset and restart path only when needed. Unknown inspection errors stop with an error instead of speculative repair.
 5. Verify the window/taskbar visually. `repair-result.json` records the selected `action`, `preflightWindowState` and before/after invariant checks. Normal completion is silent; failure shows a concise message.
 
@@ -88,3 +90,11 @@ The launcher now opens/shows the existing verified OEM GUI **before** protected 
 The normal read-only window check took about 1.6 seconds on the test laptop, without administrator rights. This is a measured example, not a startup-time guarantee. `launch-result.json` records quick-check elapsed time and whether repair was needed. The protected path records baseline, preflight and total elapsed times separately. Normal fast-path reports explicitly say `invariantsChecked: false`: no hardware writes are made, and firmware checks are not falsely claimed.
 
 Beta.5 full-launch validation on the healthy existing GUI completed in 1892 ms: `fast-reused-without-repair`, no UAC, no GUI restart, and no protected firmware checks. A wrong hidden auxiliary-window selection was fixed by prioritizing visible windows; pure tests cover a smaller visible main window outranking a larger hidden window. User-click foreground behavior and cold-start repair remain separate acceptance items.
+
+## ShowAP-first candidate / beta.6
+
+The first operation after a short pinned-launcher hash check is ShellExecute of `C:\Program Files\ControlCenter\ShowAP.exe`, matching the vendor entry. No WMI, icon scan, firmware/service query, or custom show/activation pass precedes it. The wrapper does not wait for ShowAP to exit. The subsequent `--check` is read-only and does not move or activate a healthy window. A normal result ends silently, with no protected repair or UAC.
+
+Nonzero state is observed in the background for at least eight seconds and must repeat before escalation, so a single startup sample cannot immediately trigger a restart. If a healthy current-account GUI exists, an unrelated different-owner GUI does not by itself cause failure. Unknown/unsupported state does not authorize speculative modification; actual repair remains hash-guarded and protected by normal manual UAC.
+
+`launch-result.json` separates `submittedMs` (ShowAP start request returned) from `elapsedMs` (background checks finished) and records individual state samples. Submitted time is not click-to-visible UI time. The user reported beta.5 slower than ShowAP: that run had escalated into a 10.3-second restart despite its initial check taking under one second. Earlier 1.9-second healthy-state measurements did not represent that user flow. Candidate acceptance requires a direct ShowAP comparison; no improved user-visible speed is claimed yet.

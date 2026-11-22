@@ -2,6 +2,8 @@
 
 [English](README.md) · [下載修復包](https://github.com/kinostudio/gigabyte-control-center-window-fix/releases) · [診斷與故障原因](docs/diagnosis.md)
 
+**beta.6 候選版／ShowAP 優先：** 本分支第一步直接呼叫已核對雜湊的原廠 ShowAP.exe，再做唯讀背景檢查。尚待使用者與直接點 ShowAP 的速度比對，候選版尚未發布到 Releases。
+
 針對社群常見的 **技嘉 Control Center 背景執行卻沒有視窗、開啟不顯示、工作列沒有圖示／縮圖、圖示錯誤**等症狀，整理本次調查與獨立修復工具。搜尋名稱亦可能寫成 GIGABYTE ControlCenter、AERO Control Center、AORUS Control Center won't open / not showing。
 
 **先前修復實測機型：AERO 15 KB；原廠安裝包版本 24.12.25.01，內部 ControlCenter.exe 檔案版本 24.12.24.01。** 本工具不是 GIGABYTE 官方修補程式，也不適用於所有現代 GCC／GiMATE。一台電腦成功，不代表所有玩家遇到的症狀都有相同原因。
@@ -82,3 +84,11 @@ beta.3 背景略過分支實測：2026-11-22 預檢為 0、動作 `reused-withou
 這台的一般權限唯讀視窗檢查實測約 1.6 秒，不能當成所有情況的啟動保證。`launch-result.json` 記錄快速路徑耗時與是否需修復；受保護路徑另記 baseline／preflight／total 耗時。快速路徑會標示 `invariantsChecked: false`，沒有硬體寫入，也不宣稱已做韌體前後核對。
 
 beta.5 完整快速入口在既有正常 GUI 實測 1892 ms，動作為 `fast-reused-without-repair`，無 UAC、無重開、無受保護韌體查詢。已修正選到隱藏輔助視窗的問題，並測試可見主視窗優先於更大的隱藏視窗。使用者親點前景效果與冷啟動修復仍需分別驗收。
+
+## 原廠 ShowAP 作為第一步／beta.6 候選版
+
+先做很短的固定安裝器雜湊核對，立即呼叫 `C:\Program Files\ControlCenter\ShowAP.exe`；前面沒有 WMI、圖示掃描、韌體／服務查詢，也不再用自己的顯示程序代替原廠入口。不等待 ShowAP 結束，後面才以不改動視窗的 `--check` 做背景檢查；正常就結束，不做受保護修復或要求 UAC。
+
+非正常結果至少背景觀察八秒，且須重複出現才進入需要授權的診斷／修復，避免單次啟動樣本立即造成重啟。同工作階段若已有正常目前帳戶 GUI，不會只因另一個不同擁有者 GUI 存在就判定整體異常。真正修改仍受原廠版本雜湊限制，不猜測修復未知狀態。
+
+`launch-result.json` 分別記錄 ShowAP 啟動要求返回的 `submittedMs` 與背景檢查完成的 `elapsedMs`，並列出逐次狀態。前者不是實際點擊到畫面出現的時間。使用者回報 beta.5 比 ShowAP 慢；該輪第一個檢查不到一秒，但後續進入約 10.3 秒的重啟修復。先前健康分支 1.9 秒不能代表這個實際流程，因此不再以它宣稱這次實際使用更快；仍待親自比對。
