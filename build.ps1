@@ -5,19 +5,19 @@ $dist = Join-Path $root 'dist'
 $stage = Join-Path $dist 'ControlCenterWindowFix'
 New-Item -ItemType Directory -Path $stage -Force | Out-Null
 $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
-foreach ($name in 'ControlCenterRepair', 'ControlCenterTaskbarFix') {
-    & $csc /nologo /codepage:65001 /target:winexe /platform:x64 /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Management.dll /r:System.Web.Extensions.dll "/out:$stage\$name.exe" (Join-Path $root "src\$name.cs")
+foreach ($name in 'ControlCenterRepair', 'ControlCenterStartupRepair', 'ControlCenterTaskbarFix') {
+    & $csc /nologo /codepage:65001 /target:winexe /platform:x64 /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Management.dll /r:System.Web.Extensions.dll /r:Microsoft.CSharp.dll "/out:$stage\$name.exe" (Join-Path $root "src\$name.cs")
     if ($LASTEXITCODE) { throw "Compilation failed: $name" }
     $test = Start-Process -FilePath (Join-Path $stage "$name.exe") -ArgumentList '--self-test' -WindowStyle Hidden -Wait -PassThru
     if ($test.ExitCode -ne 0) { throw "Self-test failed: $name" }
 }
-foreach ($file in 'repair-ui-startup.ps1', 'original-binary-hashes.json', 'README.md', 'README.zh-TW.md', 'LICENSE', 'THIRD-PARTY-NOTICES.md') {
+foreach ($file in 'repair-ui-startup.ps1', 'Create-Shortcut.ps1', 'original-binary-hashes.json', 'README.md', 'README.zh-TW.md', 'LICENSE', 'THIRD-PARTY-NOTICES.md') {
     Copy-Item -LiteralPath (Join-Path $root $file) -Destination $stage
 }
 Copy-Item -LiteralPath (Join-Path $root 'docs') -Destination $stage -Recurse -Force
 # Explicit lists keep personal logs and the OEM installer out of the repair-only archive.
-$items = @('ControlCenterRepair.exe','ControlCenterTaskbarFix.exe','repair-ui-startup.ps1','original-binary-hashes.json','README.md','README.zh-TW.md','LICENSE','THIRD-PARTY-NOTICES.md','docs') | ForEach-Object { Join-Path $stage $_ }
-$prefix = 'gigabyte-control-center-window-fix-v0.1.0-beta.1'
+$items = @('ControlCenterRepair.exe','ControlCenterStartupRepair.exe','ControlCenterTaskbarFix.exe','repair-ui-startup.ps1','Create-Shortcut.ps1','original-binary-hashes.json','README.md','README.zh-TW.md','LICENSE','THIRD-PARTY-NOTICES.md','docs') | ForEach-Object { Join-Path $stage $_ }
+$prefix = 'gigabyte-control-center-window-fix-v0.1.0-beta.2'
 Compress-Archive -LiteralPath $items -DestinationPath (Join-Path $dist "$prefix-repair-only.zip") -Force
 if ($InstallerPath) {
     $installer = Get-Item -LiteralPath $InstallerPath

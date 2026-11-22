@@ -22,6 +22,12 @@ Community workaround for **GIGABYTE Control Center not showing, running in the b
 
 The original installer is mirrored unchanged inside the full release ZIP. [Source, signature and version verification](docs/installer-verification.md). The OEM software remains subject to its own terms and is excluded from this project's MIT license.
 
+## One-click automatic repair shortcut
+
+Open `ControlCenterRepair.exe` and click **Create desktop shortcut** to create **Control Center - Auto Repair** on your desktop. Keep the extracted folder in a stable location. Every time you use this shortcut, `ControlCenterRepair.exe --launch` automatically starts the verified repair, asks for normal UAC approval, then closes its launcher on success. On failure the repair window stays open with diagnostics. It restarts the OEM GUI, so finish pending Control Center changes first. Launching again can restart an already-running GUI.
+
+This automates the workaround on every launch **through this shortcut**. It does not intercept the vendor's original shortcuts, services or Windows startup, and does not remove the underlying OEM bug. The startup repair runs as a compiled EXE and does not require PowerShell script execution; it does not suppress UAC or change script execution policy. Reboot persistence is not yet verified.
+
 ## Why the window can disappear
 
 Investigation of the inspected build found three relevant behaviors:
@@ -47,7 +53,7 @@ The repair currently requires the exact verified main EXE SHA-256, installation 
 
 ## Build and verification
 
-Windows x64, .NET Framework 4.x and built-in Windows PowerShell 5.1 are required. No Codex installation or fixed personal PowerShell path is needed.
+Windows x64 and .NET Framework 4.x are required for the repair. PowerShell is needed only for building or the optional shortcut creation script; the runtime repair uses a compiled helper and works without enabling .ps1 execution. No Codex installation is needed.
 
 ```powershell
 .\build.ps1
@@ -55,9 +61,9 @@ Windows x64, .NET Framework 4.x and built-in Windows PowerShell 5.1 are required
 .\build.ps1 -InstallerPath 'D:\Downloads\ControlCenter_Ver_24.12.25.01.exe'
 ```
 
-The script compiles both C# programs and runs pure `--self-test` branches. It does not execute the OEM installer, start/stop Control Center or change hardware settings. Outputs are in `dist/`. The full-bundle build rejects a different installer hash or an invalid signature.
+The script compiles the three C# programs and runs pure `--self-test` branches. It does not execute the OEM installer, start/stop Control Center or change hardware settings. Outputs are in `dist/`. The full-bundle build rejects a different installer hash or an invalid signature.
 
-Earlier local repair: user confirmed window, taskbar G icon and thumbnail; logs recorded foreground/icon readback and unchanged charge limit (60%), power plan and service status. The public build replaces a machine-specific PowerShell path, adds bilingual UI and a wait timeout; it has build/self-test verification, **not a new clean-install, reboot or multi-device acceptance test**. Binaries are unsigned.
+Earlier local repair: user confirmed window, taskbar G icon and thumbnail; logs recorded foreground/icon readback and unchanged charge limit (60%), power plan and service status. The beta.2 build adds the --launch shortcut and compiled startup repair (avoiding Restricted PowerShell script policy), with bilingual UI and a wait timeout; it has build/self-test verification. A beta.2 automatic-launch run completed on the same AERO 15 KB with icon readback and unchanged 60% charge limit, power plan and service state. Windows denied that run's foreground activation request; forced foreground is not promised. **Clean-install, reboot and multi-device acceptance remain unverified**. Binaries are unsigned.
 
 ## Reporting a matching issue
 

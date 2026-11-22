@@ -74,13 +74,13 @@ No extracted OEM source, full decompilation dump or personal diagnostic logs are
 
 以上檔案分別記錄前後核對、視窗階段、圖示讀回與旗標備份。自動成功不等於人工驗收；Windows 可能拒絕一般前景切換要求。下一輪會更新旗標備份，需要保留首次基準時先另存備份。
 
-On hash mismatch or missing getters, stop and collect the version/read-only results; do not weaken the guard or repeatedly reinstall unrelated GCC versions. If PowerShell policy blocks the script, review the source and use your organization's approved script-signing/execution process; the launcher does not bypass policy. The public UI times out after three minutes, but timeout does not prove the child process has exited: inspect logs before another attempt.
+On hash mismatch or missing getters, stop and collect the version/read-only results; do not weaken the guard or repeatedly reinstall unrelated GCC versions. If beta.1 is blocked by Restricted PowerShell script policy, use beta.2: its launcher invokes the compiled ControlCenterStartupRepair.exe instead of the legacy reference script. No execution policy change or bypass is used. The public UI times out after three minutes, but timeout does not prove the child process has exited: inspect logs before another attempt.
 
-雜湊不符或 getter 不可用時停止，先提供版本與唯讀結果，不刪除保護或亂裝其他 GCC 版本。PowerShell 政策阻擋時，先審查原始碼並依組織允許的簽章／執行程序處理；入口不繞過政策。公開介面三分鐘後逾時不代表背景程序已結束，重試前先查日誌。
+雜湊不符或 getter 不可用時停止，先提供版本與唯讀結果，不刪除保護或亂裝其他 GCC 版本。若 beta.1 被 Restricted 腳本政策阻擋，改用 beta.2；入口會呼叫編譯的 ControlCenterStartupRepair.exe，舊 PowerShell 腳本只保留作參考，不會在修復時執行，不變更或略過政策。公開介面三分鐘後逾時不代表背景程序已結束，重試前先查日誌。
 
-On a failure after a flag change, the script attempts flag rollback only when the new GUI is not running; it avoids inserting a hide flag during initialization. To undo window styles/icons, close the OEM GUI normally; those changes are process-local. Manual registry recovery must use the saved existence/value/type while the GUI is closed; restoring FirstTime may also restore the original hidden-window behavior. Do not use an arbitrary zero value as a guessed recovery.
+On a failure after a flag change, the repair helper attempts flag rollback only when the new GUI is not running; it avoids inserting a hide flag during initialization. To undo window styles/icons, close the OEM GUI normally; those changes are process-local. Manual registry recovery must use the saved existence/value/type while the GUI is closed; restoring FirstTime may also restore the original hidden-window behavior. Do not use an arbitrary zero value as a guessed recovery.
 
-若已改旗標後失敗，且新 GUI 已結束，腳本才嘗試回復；GUI 初始化中不插回可能隱藏視窗的旗標。正常關閉原廠 GUI 即結束該程序的視窗修復。手動恢復登錄值須在 GUI 關閉時，依備份的存在性／數值／型別處理，且可能恢復原本隱藏行為；不能猜一個 0 當作還原。
+若已改旗標後失敗，且新 GUI 已結束，修復工具才嘗試回復；GUI 初始化中不插回可能隱藏視窗的旗標。正常關閉原廠 GUI 即結束該程序的視窗修復。手動恢復登錄值須在 GUI 關閉時，依備份的存在性／數值／型別處理，且可能恢復原本隱藏行為；不能猜一個 0 當作還原。
 
 ## 6. Evidence and limits / 驗證與限制
 
@@ -94,3 +94,9 @@ Earlier user acceptance: visible GUI, taskbar G icon and thumbnail; native recor
 - [Extended window styles](https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles)
 - [SetWindowLongPtr](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowlongptra)
 - [Icons](https://learn.microsoft.com/en-us/windows/win32/menurc/about-icons)
+
+### beta.2 automatic-launch follow-up / 自動入口追加核對
+
+On 2026-11-22 at 19:46 (Asia/Taipei), the desktop shortcut invoked the compiled startup helper with manual UAC approval. The record confirmed current-user GUI ownership, APPWINDOW style, IconReadback=True and unchanged charge policy 4 / limit 60%, power plan and service. ForegroundRequest=False / IsForeground=False: Windows did not grant the normal foreground request. This establishes the automatic repair sequence and invariant checks, not guaranteed foreground activation or reboot persistence.
+
+2026-11-22 19:46（台灣時間），桌面捷徑透過手動 UAC 啟動編譯版修復工具，完成目前使用者 GUI、工作列樣式、圖示讀回及 60% 上限／電源／服務前後核對。該輪前景要求為 False，因此不宣稱可強制置前或已驗證重開機。使用原廠舊入口仍不會自動套用；新捷徑每次重新套用。
