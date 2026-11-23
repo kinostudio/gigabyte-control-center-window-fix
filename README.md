@@ -1,10 +1,10 @@
 # GIGABYTE Control Center won't open — window and taskbar fix
 
-[繁體中文](README.zh-TW.md) · [Downloads](https://github.com/kinostudio/gigabyte-control-center-window-fix/releases/tag/v0.1.0-beta.5) · [Diagnosis and causes](docs/diagnosis.md)
+[繁體中文](README.zh-TW.md) · [Downloads](https://github.com/kinostudio/gigabyte-control-center-window-fix/releases/tag/v0.1.0-beta.1) · [Diagnosis and causes](docs/diagnosis.md)
 
 Community workaround for **GIGABYTE Control Center not showing, running in the background with no window, missing taskbar icon/thumbnail, or the wrong taskbar icon** on legacy AERO / AORUS laptops. 中文：技嘉 Control Center 打不開、無法顯示、背景執行卻沒視窗、工作列圖示／縮圖消失。
 
-**Updated in place on 2026-11-23.** The repository, `v0.1.0-beta.5` release URL and ZIP filenames stay the same; their contents and SHA-256 have changed to the current **ShowAP-first** implementation. Re-download if you have an older copy. `RELEASE-REVISION.txt` inside the ZIP identifies its source commit and build. Earlier development notes called this implementation beta.6; it is now distributed through the existing beta.5 download path.
+**Updated in place on 2026-11-23.** The repository, `v0.1.0-beta.1` release URL and ZIP filenames stay the same; their contents and SHA-256 have changed to the current **ShowAP-first** implementation. Re-download if you have an older copy. `RELEASE-REVISION.txt` inside the ZIP identifies its source commit and build. Only this original beta.1 release is retained; the current implementation is updated in place.
 
 Independent utility, not an official GIGABYTE patch. Documented device: **AERO 15 KB**, OEM installer **24.12.25.01**, internal main EXE **24.12.24.01**. It is not a universal modern GCC / GiMATE repair.
 

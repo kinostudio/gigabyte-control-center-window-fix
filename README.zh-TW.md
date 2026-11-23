@@ -1,10 +1,10 @@
 # GIGABYTE Control Center 無法顯示／打不開：視窗、工作列圖示與縮圖修復
 
-[English](README.md) · [下載](https://github.com/kinostudio/gigabyte-control-center-window-fix/releases/tag/v0.1.0-beta.5) · [故障原因與查修](docs/diagnosis.md)
+[English](README.md) · [下載](https://github.com/kinostudio/gigabyte-control-center-window-fix/releases/tag/v0.1.0-beta.1) · [故障原因與查修](docs/diagnosis.md)
 
 針對 **技嘉 Control Center 背景執行卻沒視窗、開啟不顯示、工作列圖示／縮圖消失或圖示錯誤**整理的獨立修復工具。搜尋名稱亦可能為 GIGABYTE ControlCenter、AERO／AORUS Control Center won't open / not showing。
 
-**2026-11-23 原址更新：** 保留原倉庫、`v0.1.0-beta.5` 發布網址與 ZIP 檔名，內容已換成目前的 **ShowAP 優先啟動版**，SHA-256 也已更新。已下載舊檔者請重新下載；ZIP 內 `RELEASE-REVISION.txt` 記錄來源提交與建置時間。開發期間稱為 beta.6 的實作，現在沿用既有 beta.5 下載路徑發送。
+**2026-11-23 原址更新：** 保留原倉庫、`v0.1.0-beta.1` 發布網址與 ZIP 檔名，內容已換成目前的 **ShowAP 優先啟動版**，SHA-256 也已更新。已下載舊檔者請重新下載；ZIP 內 `RELEASE-REVISION.txt` 記錄來源提交與建置時間。公開版本僅保留最初的 beta.1，最新版實作統一在此原址更新。
 
 實測機型為 **AERO 15 KB**，原廠安裝包 **24.12.25.01**，內部主程式檔案版本 **24.12.24.01**。本工具不是 GIGABYTE 官方修補程式，也不是所有新版 GCC／GiMATE 的通用修復。
 

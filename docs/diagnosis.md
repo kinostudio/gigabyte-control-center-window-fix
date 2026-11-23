@@ -74,9 +74,9 @@ No extracted OEM source, full decompilation dump or personal diagnostic logs are
 
 以上檔案分別記錄前後核對、視窗階段、圖示讀回與旗標備份。自動成功不等於人工驗收；Windows 可能拒絕一般前景切換要求。下一輪會更新旗標備份，需要保留首次基準時先另存備份。
 
-On hash mismatch or missing getters, stop and collect the version/read-only results; do not weaken the guard or repeatedly reinstall unrelated GCC versions. If beta.1 is blocked by Restricted PowerShell script policy, use beta.2: its launcher invokes the compiled ControlCenterStartupRepair.exe instead of the legacy reference script. No execution policy change or bypass is used. The public UI times out after three minutes, but timeout does not prove the child process has exited: inspect logs before another attempt.
+On hash mismatch or missing getters, stop and collect the version/read-only results; do not weaken the guard or repeatedly reinstall unrelated GCC versions. If an older downloaded copy is blocked by Restricted PowerShell script policy, re-download the current beta.1: its launcher invokes the compiled ControlCenterStartupRepair.exe instead of the legacy reference script. No execution policy change or bypass is used. The public UI times out after three minutes, but timeout does not prove the child process has exited: inspect logs before another attempt.
 
-雜湊不符或 getter 不可用時停止，先提供版本與唯讀結果，不刪除保護或亂裝其他 GCC 版本。若 beta.1 被 Restricted 腳本政策阻擋，改用 beta.2；入口會呼叫編譯的 ControlCenterStartupRepair.exe，舊 PowerShell 腳本只保留作參考，不會在修復時執行，不變更或略過政策。公開介面三分鐘後逾時不代表背景程序已結束，重試前先查日誌。
+雜湊不符或 getter 不可用時停止，先提供版本與唯讀結果，不刪除保護或亂裝其他 GCC 版本。若較早下載的版本被 Restricted 腳本政策阻擋，重新下載目前的 beta.1；入口會呼叫編譯的 ControlCenterStartupRepair.exe，舊 PowerShell 腳本只保留作參考，不會在修復時執行，不變更或略過政策。公開介面三分鐘後逾時不代表背景程序已結束，重試前先查日誌。
 
 On a failure after a flag change, the repair helper attempts flag rollback only when the new GUI is not running; it avoids inserting a hide flag during initialization. To undo window styles/icons, close the OEM GUI normally; those changes are process-local. Manual registry recovery must use the saved existence/value/type while the GUI is closed; restoring FirstTime may also restore the original hidden-window behavior. Do not use an arbitrary zero value as a guessed recovery.
 
@@ -95,13 +95,13 @@ Earlier user acceptance: visible GUI, taskbar G icon and thumbnail; native recor
 - [SetWindowLongPtr](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowlongptra)
 - [Icons](https://learn.microsoft.com/en-us/windows/win32/menurc/about-icons)
 
-### beta.2 automatic-launch follow-up / 自動入口追加核對
+### Earlier automatic-launch follow-up / 自動入口追加核對
 
 On 2026-11-22 at 19:46 (Asia/Taipei), the desktop shortcut invoked the compiled startup helper with manual UAC approval. The record confirmed current-user GUI ownership, APPWINDOW style, IconReadback=True and unchanged charge policy 4 / limit 60%, power plan and service. ForegroundRequest=False / IsForeground=False: Windows did not grant the normal foreground request. This establishes the automatic repair sequence and invariant checks, not guaranteed foreground activation or reboot persistence.
 
 2026-11-22 19:46（台灣時間），桌面捷徑透過手動 UAC 啟動編譯版修復工具，完成目前使用者 GUI、工作列樣式、圖示讀回及 60% 上限／電源／服務前後核對。該輪前景要求為 False，因此不宣稱可強制置前或已驗證重開機。使用原廠舊入口仍不會自動套用；新捷徑每次重新套用。
 
-### beta.3 conditional background launch / 條件式背景啟動
+### Earlier conditional background launch / 條件式背景啟動
 
 Default launch is silent except for UAC and failures. Preflight checks current-session process path/owner, visible WPF window, taskbar style bits, and pixel comparison of both window icons against the installed OEM icon. Minimized healthy windows are restored rather than restarted. Check state 0 means reuse/activate; state 4 means window-only repair without restarting; state 5 means no usable current-user window, requiring startup handling. Unknown checks stop with an error. No running GUI plus an absent FirstTime flag takes a direct-start-and-inspect path before any reset is considered.
 
@@ -109,7 +109,7 @@ Default launch is silent except for UAC and failures. Preflight checks current-s
 
 `repair-result.json` records `action`: `reused-without-repair`, `started-without-repair`, `window-repair-only; GUI retained`, or `startup-repair-and-restart`. FirstTime backup/reset happens only on the startup-repair path. Charge/power/service snapshots are still compared. `--settings` explicitly opens the management UI; it is not the default desktop workflow.
 
-The beta.3 healthy-state run at 19:58 on 2026-11-22 (Asia/Taipei) recorded `ready; repair skipped`, `preflightWindowState: 0`, action `reused-without-repair`, and unchanged PID 89704. Charge policy 4 / limit 60%, active plan and service matched before/after. No FirstTime backup/reset or GUI restart occurred. New abnormal-state decisions are not represented as separately hardware-tested.
+The earlier healthy-state run at 19:58 on 2026-11-22 (Asia/Taipei) recorded `ready; repair skipped`, `preflightWindowState: 0`, action `reused-without-repair`, and unchanged PID 89704. Charge policy 4 / limit 60%, active plan and service matched before/after. No FirstTime backup/reset or GUI restart occurred. New abnormal-state decisions are not represented as separately hardware-tested.
 
 ### Foreground diagnostics / 前景診斷
 
@@ -117,14 +117,20 @@ The beta.3 healthy-state run at 19:58 on 2026-11-22 (Asia/Taipei) recorded `read
 
 以上三種紀錄分別確認入口授權、子程序授權及真正的前景結果；視窗修復分支仍可查 taskbar-window-result.txt。工作列／圖示成功不能推論前景成功，日誌不納入公開包。
 
-### beta.5 launch-first timing / 先顯示再檢查的耗時
+### Earlier launch-first timing / 先顯示再檢查的耗時
 
-The earlier beta.4 failure recorded startup at 20:33:43 and taskbar readiness at 20:33:53 (2026-11-22 Asia/Taipei), about 10 seconds including checks and OEM initialization, with both foreground delegations false. This does not identify every second as inspection cost. Beta.5 moves the OEM launch/show ahead of protected checks, uses limited process-image queries for the medium-privilege window path, and adds one-time normal Z-order raising without permanent topmost. Healthy state skips protected repair entirely. Background firmware/service snapshots remain mandatory before/after actual protected repair. A read-only medium-privilege --check run returned healthy in 1616 ms; user-click launch speed and foreground behavior require separate confirmation.
+The earlier foreground-delegation failure recorded startup at 20:33:43 and taskbar readiness at 20:33:53 (2026-11-22 Asia/Taipei), about 10 seconds including checks and OEM initialization, with both foreground delegations false. This does not identify every second as inspection cost. The previous launcher moved the OEM launch/show ahead of protected checks, uses limited process-image queries for the medium-privilege window path, and adds one-time normal Z-order raising without permanent topmost. Healthy state skips protected repair entirely. Background firmware/service snapshots remain mandatory before/after actual protected repair. A read-only medium-privilege --check run returned healthy in 1616 ms; user-click launch speed and foreground behavior require separate confirmation.
 
 前一版十秒包含檢查與原廠初始化，不能全部歸為判斷時間。新版將原廠啟動／顯示提前，正常略過受保護查詢；必要修復仍保留前後核對。新增 launch-result.json 及受保護路徑的分段時間，與 activation-result.json 一起判讀。快速正常路徑沒有韌體前後核對，不會虛報設定驗證。
 
 At 20:45 (Asia/Taipei) the complete fast launch reused GUI PID 57656 without restart, recorded firstCheck=0, repairNeeded=false, elapsedMs=1892 and invariantsChecked=false. The selected visible main HWND was 1446074 with style 0xC0000. Earlier --show scans included hidden auxiliary windows and could report a false defect even while --check reported healthy; visible windows now outrank all hidden candidates. This was verified through the complete launcher, not just a standalone probe. The automated background launch still recorded a denied foreground request; only a user-click acceptance can establish the desired front-of-screen behavior.
 
-### User-reported slow beta.5 run / 使用者慢速回報
+### User-reported slow earlier run / 使用者慢速回報
 
-The actual run at 21:11 on 2026-11-22 (Asia/Taipei) had quick state 4 at 983 ms, then protected preflight state 5 and `startup-repair-and-restart`, total protected time 10314 ms. It did successfully record foreground and icon readback with charge limit 60%, plan and service unchanged. Thus a warm healthy benchmark was insufficient evidence of user-facing speed. Beta.6 starts the actual vendor ShowAP before any inspection, samples read-only state afterward, and records submission separately from completion. Direct user acceptance is pending, not assumed from submission timing.
+The actual run at 21:11 on 2026-11-22 (Asia/Taipei) had quick state 4 at 983 ms, then protected preflight state 5 and `startup-repair-and-restart`, total protected time 10314 ms. It did successfully record foreground and icon readback with charge limit 60%, plan and service unchanged. Thus a warm healthy benchmark was insufficient evidence of user-facing speed. The current beta.1 starts the actual vendor ShowAP before any inspection, samples read-only state afterward, and records submission separately from completion. Direct user acceptance is pending, not assumed from submission timing.
+
+### Public release consolidation / 公開版本統一
+
+The current code is published only as **Control Center not showing fix / 無法顯示修復 v0.1.0-beta.1**. Earlier release entries are removed; the dated observations above describe development iterations, not additional versions to download. Re-download the same beta.1 URL and use RELEASE-REVISION.txt plus SHA256SUMS.txt to identify current contents.
+
+公開發布僅保留最初的 beta.1，最新版原址更新；上面的日期紀錄是開發過程證據，不代表還有其他版本需要下載。請用修訂檔與新雜湊辨識目前內容。

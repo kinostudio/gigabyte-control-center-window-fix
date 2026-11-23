@@ -24,11 +24,11 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
         $treeState = if (& git -c "safe.directory=$root" -C $root status --porcelain) { 'dirty' } else { 'clean' }
     }
 }
-@("Release path: v0.1.0-beta.5 (in-place update)", "Build UTC: $([DateTime]::UtcNow.ToString('o'))", "Source commit: $sourceCommit", "Working tree: $treeState", 'Flow: OEM ShowAP first; read-only background inspection afterward') | Set-Content -LiteralPath (Join-Path $stage 'RELEASE-REVISION.txt') -Encoding utf8
+@("Release path: v0.1.0-beta.1 (in-place update)", "Build UTC: $([DateTime]::UtcNow.ToString('o'))", "Source commit: $sourceCommit", "Working tree: $treeState", 'Flow: OEM ShowAP first; read-only background inspection afterward') | Set-Content -LiteralPath (Join-Path $stage 'RELEASE-REVISION.txt') -Encoding utf8
 # Explicit lists keep personal logs and the OEM installer out of the repair-only archive.
 $items = @('ControlCenterRepair.exe','ControlCenterStartupRepair.exe','ControlCenterTaskbarFix.exe','repair-ui-startup.ps1','Create-Shortcut.ps1','original-binary-hashes.json','README.md','README.zh-TW.md','LICENSE','THIRD-PARTY-NOTICES.md','RELEASE-REVISION.txt','docs') | ForEach-Object { Join-Path $stage $_ }
 # Keep existing download links valid; RELEASE-REVISION identifies the current contents.
-$prefix = 'gigabyte-control-center-window-fix-v0.1.0-beta.5'
+$prefix = 'gigabyte-control-center-window-fix-v0.1.0-beta.1'
 Compress-Archive -LiteralPath $items -DestinationPath (Join-Path $dist "$prefix-repair-only.zip") -Force
 if ($InstallerPath) {
     $installer = Get-Item -LiteralPath $InstallerPath
