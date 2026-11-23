@@ -1,94 +1,70 @@
 # GIGABYTE Control Center 無法顯示／打不開：視窗、工作列圖示與縮圖修復
 
-[English](README.md) · [下載修復包](https://github.com/kinostudio/gigabyte-control-center-window-fix/releases) · [診斷與故障原因](docs/diagnosis.md)
+[English](README.md) · [下載](https://github.com/kinostudio/gigabyte-control-center-window-fix/releases/tag/v0.1.0-beta.5) · [故障原因與查修](docs/diagnosis.md)
 
-**beta.6 候選版／ShowAP 優先：** 本分支第一步直接呼叫已核對雜湊的原廠 ShowAP.exe，再做唯讀背景檢查。尚待使用者與直接點 ShowAP 的速度比對，候選版尚未發布到 Releases。
+針對 **技嘉 Control Center 背景執行卻沒視窗、開啟不顯示、工作列圖示／縮圖消失或圖示錯誤**整理的獨立修復工具。搜尋名稱亦可能為 GIGABYTE ControlCenter、AERO／AORUS Control Center won't open / not showing。
 
-針對社群常見的 **技嘉 Control Center 背景執行卻沒有視窗、開啟不顯示、工作列沒有圖示／縮圖、圖示錯誤**等症狀，整理本次調查與獨立修復工具。搜尋名稱亦可能寫成 GIGABYTE ControlCenter、AERO Control Center、AORUS Control Center won't open / not showing。
+**2026-11-23 原址更新：** 保留原倉庫、`v0.1.0-beta.5` 發布網址與 ZIP 檔名，內容已換成目前的 **ShowAP 優先啟動版**，SHA-256 也已更新。已下載舊檔者請重新下載；ZIP 內 `RELEASE-REVISION.txt` 記錄來源提交與建置時間。開發期間稱為 beta.6 的實作，現在沿用既有 beta.5 下載路徑發送。
 
-**先前修復實測機型：AERO 15 KB；原廠安裝包版本 24.12.25.01，內部 ControlCenter.exe 檔案版本 24.12.24.01。** 本工具不是 GIGABYTE 官方修補程式，也不適用於所有現代 GCC／GiMATE。一台電腦成功，不代表所有玩家遇到的症狀都有相同原因。
+實測機型為 **AERO 15 KB**，原廠安裝包 **24.12.25.01**，內部主程式檔案版本 **24.12.24.01**。本工具不是 GIGABYTE 官方修補程式，也不是所有新版 GCC／GiMATE 的通用修復。
 
 ## 下載與使用
 
 | 發布檔案 | 用途 |
 | --- | --- |
-| `*-with-official-installer.zip` | 完整包：修復工具＋未修改的原廠簽章安裝器 `ControlCenter_Ver_24.12.25.01.exe` |
-| `*-repair-only.zip` | 已安裝正確版本者使用的精簡修復包 |
-| `SHA256SUMS.txt` | ZIP 的 SHA-256 核對值 |
+| `*-with-official-installer.zip` | 完整包：修復工具＋未修改且有原廠簽章的 `ControlCenter_Ver_24.12.25.01.exe` |
+| `*-repair-only.zip` | 已安裝相符原廠版本者使用，包含完整修復元件 |
+| `SHA256SUMS.txt` | 本次 ZIP 的新雜湊，取代之前的核對值 |
 
-1. 從 [Releases](https://github.com/kinostudio/gigabyte-control-center-window-fix/releases) 下載，核對 SHA-256，**完整解壓縮**到可寫入的資料夾；不要在 ZIP 內執行，也不要只複製單一 EXE。
-2. 尚未安裝者，先確認[官方機型下載表](docs/supported-models.md)，再手動執行完整包內的原廠安裝器，閱讀原廠條款並依需要重新開機。安裝與修復是分開的步驟，修復工具不會自動執行安裝器或重裝。
-3. 執行 `ControlCenterRepair.exe` 或桌面 **Control Center - Auto Repair** 捷徑。預設在背景檢查，不顯示例行修復視窗；正常快速路徑不要求提升權限；只有需要受保護診斷／修復時，才手動同意同一帳戶的正常 UAC。
-4. 正常的既有視窗直接還原／啟用，不重開、不重設 FirstTime。只有工作列或圖示異常則保留程序修復視窗。未執行時先直接啟動原廠 GUI、顯示並檢查，再決定是否修復；隱藏、啟動身分或旗標造成異常時才進入備份、重設與重啟流程。讀取失敗不能當成正常，也不盲目修復。
-5. 核對視窗與工作列；`repair-result.json` 會記錄實際 `action`、檢查結果與前後一致性。正常完成不跳修復視窗，失敗才顯示簡短錯誤。
+1. 下載、核對雜湊，**完整解壓縮**到固定且可寫入的資料夾。不要在 ZIP 中執行，不要只複製單一 EXE。
+2. 尚未安裝者先確認[官方機型下載表](docs/supported-models.md)，再手動執行該機型適用的原廠安裝器，閱讀原廠條款及重新開機要求；工具不會自動安裝。
+3. 執行 `ControlCenterRepair.exe` 或其桌面捷徑。第一個啟動步驟直接呼叫已核對雜湊的原廠 **ShowAP.exe**，不等待它結束，也不把 WMI、圖示掃描或韌體查詢放在前面。
+4. 後面才做不改動視窗的唯讀背景檢查。正常就安靜結束，**不要求工具修復 UAC、不強制重啟、不重設 FirstTime**。
+5. 非正常結果至少背景觀察八秒，且須重複出現才請求需要授權的診斷／修復。必要時手動同意正常 UAC。能保留目前使用者 GUI 時，只修工作列／圖示；啟動異常才重啟指定原廠程序。
 
-完整包保留原廠 EXE 本身，不修改安裝器或簽章。[來源與驗證紀錄](docs/installer-verification.md)。原廠安裝器權利歸原廠，不套用本修復工具的 MIT 授權。
+建立捷徑可使用 Windows「傳送到 → 桌面」，或執行 `ControlCenterRepair.exe --settings` 後按「建立桌面捷徑」。`Create-Shortcut.ps1` 僅供腳本政策允許時選用。請保留完整資料夾；原廠舊捷徑、服務及開機啟動不會被攔截。前一輪仍在觀察或修復時，重複點擊會略過。
 
-## 背景檢查與新捷徑
+完整包中的原廠安裝器未修改，保留其數位簽章，[來源驗證](docs/installer-verification.md)。原廠軟體不套用本修復工具 MIT 授權，權利與使用條款仍屬原廠及各供應商。
 
-直接執行 EXE 或使用 `--launch` 都走背景模式。可對解壓縮後的 EXE 使用 Windows「傳送到 → 桌面（建立捷徑）」；也可執行 `ControlCenterRepair.exe --settings`，在管理介面按「建立桌面捷徑」。可選的 `Create-Shortcut.ps1` 只在腳本政策允許時使用。
+## 本次版本查到的故障原因
 
-每次先確認狀態，正常就略過修復；不殺掉正常 GUI、不覆蓋 FirstTime 備份，也不閃現修復主視窗。異常才依需要處理，失敗才顯示提示。快速路徑只核對原廠版本與視窗，不查韌體、不要求 UAC；必要的受保護診斷與修復才需手動 UAC，不會變更或略過安全政策；前一輪仍執行時重複點擊會略過。
+- **FirstTime 存在性判斷：** 檢查的啟動分支只判斷登錄值存在，即使資料是 0 仍可能隱藏視窗及停用 ShowInTaskbar；設成 0 不是刪除旗標的等價作法。
+- **GUI 啟動身分：** 曾觀察到 ShowAP／SMV4_Service 的特定路徑產生 SYSTEM GUI，先前視窗修改因此遭遇存取被拒。這不代表所有前景問題都是權限造成。若已有正常的目前帳戶 GUI，不因另一個不同擁有者 GUI 存在就直接判為失敗。
+- **工作列與圖示：** 只改用目前使用者啟動仍未恢復工作列，因此修復 APPWINDOW／TOOLWINDOW 樣式、重建按鈕，並使用安裝資料夾的 icon.ico；輔助程序保留圖示資源直到原廠 GUI 結束。
 
-請保留完整解壓縮資料夾。只有新 EXE／捷徑會走這個流程，原廠舊捷徑、服務與開機啟動不會被攔截。這是條件式套用修復，不是永久改寫原廠本體；Windows 仍可能拒絕前景切換。
+[中英文診斷文件](docs/diagnosis.md) 說明如何唯讀查找、對照證據、修復、查看結果與回復。倉庫不附個人日誌或原廠完整反編譯內容，也不宣稱原廠公告所有機型都有相同通病。
 
-## 故障原因摘要
+## 相容性與變更範圍
 
-本次檢查的版本發現以下行為，並非宣稱原廠已公告所有機型均有這些問題：
+[官方下載列有此版的機型](docs/supported-models.md) 包含 AERO 15／15S 第 10 代與部分第 9 代 AERO／AORUS。**官方提供安裝器，不等於修復工具已逐機驗證；目前僅 AERO 15 KB 有本次實測紀錄。** 本工具不宣稱此版是原廠最新版本。
 
-- **FirstTime 判斷存在性：** 初始化分支只看登錄值是否存在，即使數值是 `0`，仍可能進入隱藏視窗及停用 `ShowInTaskbar` 的路徑。因此設為 0 不是刪除旗標的等價作法。
-- **啟動身分：** 實際觀察到 ShowAP／SMV4_Service 的特定啟動路徑讓 GUI 由 SYSTEM 擁有，先前修改視窗時因此遭遇「存取被拒」。這只是已觀察到的因素，不能把所有前景問題都歸因於權限。
-- **工作列與圖示：** 改用目前使用者啟動後，視窗雖恢復，工作列仍缺少按鈕；因此移除 `WS_EX_TOOLWINDOW`、加入 `WS_EX_APPWINDOW`，經短暫隱藏／樣式變更／顯示重建工作列，再從既有 `icon.ico` 設定圖示。圖示資源由輔助程序保留到原廠 GUI 關閉。
+固定安裝路徑為 `C:\Program Files\ControlCenter`；啟動前核對 ShowAP 雜湊，修復前核對 GUI 主程式雜湊。受保護修復需要舊版 SMV4_Service 與可讀取的 GB_WMIACPI_Get 充電查詢。未知版本不允許關閉 GUI 或重設旗標，請勿移除保護強迫相容。
 
-[完整中英文診斷文件](docs/diagnosis.md) 列出如何查找、讀取證據、修復、驗證與失敗處理。
+工具不改原廠 EXE／DLL、不注入、不安裝驅動、不新增開機項目、不改腳本政策，也沒有 CPU／GPU／充電／電源計畫寫入指令。只有實際修復時才可能備份並重設 FirstTime、重啟指定 GUI，或調整當次程序的視窗／圖示。
 
-## 支援範圍與限制
+受保護修復前後會核對充電政策、上限、電源計畫與服務；差異會回報，不默默寫回設定。**正常唯讀背景路徑不查韌體**，明確記錄 `invariantsChecked: false`，不虛報已核對硬體。原廠入口仍會執行它本身的正常行為。
 
-[官方下載列有此版本的機型表](docs/supported-models.md) 包含 AERO 15／15S 第 10 代 Intel 與部分第 9 代 AERO／AORUS。**原廠提供安裝器的機型，與本修復工具已實機驗證的機型，是兩件事；目前僅 AERO 15 KB 完成先前的互動驗證。** 官方可能另有較新版本，不能直接沿用本工具。
+這是每次啟動時的條件式修復，不是永久修改原廠本體。Windows 仍可能拒絕前景切換；沒有永久置頂、模擬輸入、執行緒輸入綁定或前景鎖定繞過。重開機、乾淨重裝及多機型驗收尚未完成，修復 EXE 本身未簽章。
 
-修復工具目前要求主程式 SHA-256 與核對版本一致，固定安裝於 `C:\Program Files\ControlCenter`，具備舊版 `SMV4_Service` 與可讀取的 `GB_WMIACPI_Get` 充電查詢。未知版本在關閉 GUI、刪除 FirstTime 前就會拒絕執行；不要改掉雜湊來強迫相容。
+## 驗證與耗時
 
-本工具不改寫原廠 EXE／DLL、不注入、不安裝驅動、不新增開機啟動項目、不調整 CPU／GPU 或充電上限。修復前後會查詢充電政策、上限、電源計畫與服務狀態；若原廠啟動後出現差異，回報失敗，不自動回寫硬體設定。先前本機紀錄的充電上限前後均為 60%。
+三個 C# 程式通過建置與純邏輯自我檢查，涵蓋入口分流、啟動觀察、圖示比對與可見視窗優先；不能取代實機驗收。
 
-視窗修復是目前程序的暫時狀態，原廠啟動邏輯未被改寫；重開機、更新或使用原廠入口可能再次出現，必要時重新從修復入口開啟。尚未提供開機永久修復。
+2026-11-23 本機紀錄顯示：ShowAP 啟動要求約 **1338 ms** 返回，背景狀態依序為 5 → 2 → 0，約 **5415 ms** 後正常結束，沒有進入受保護修復。前者**不是點擊到畫面出現的時間**，後者也不代表畫面被阻擋等待。直接與 ShowAP 比較的體感速度及穩定前景效果尚不能宣稱已驗收。先前健康分支的 1.9 秒，不能代表另一輪走到約十秒重啟修復的使用情況。
 
-## 建置與驗證
+先前修復實測已確認視窗、G 圖示／縮圖，以及 60% 上限、電源計畫與服務前後一致；版本別證據與限制詳見診斷文件。
 
-執行需求：Windows x64、.NET Framework 4.x；不需要安裝 Codex，也不需要啟用 PowerShell 腳本執行。PowerShell 只用於建置或可選的捷徑建立腳本。
+`launch-result.json` 分開記錄原廠啟動要求與背景檢查時間；`repair-result.json` 記錄實際動作及有執行時的受保護前後核對。前景結果與工作列／圖示成功分開判讀。向 [Issues](https://github.com/kinostudio/gigabyte-control-center-window-fix/issues) 貼日誌前，先遮蔽帳戶及個人路徑。
+
+## 建置
+
+需要 Windows x64、.NET Framework 4.x。PowerShell 僅用於建置，編譯後的修復不執行 PowerShell 腳本，也不需要 Codex。
 
 ```powershell
 .\build.ps1
 .\build.ps1 -InstallerPath 'D:\Downloads\ControlCenter_Ver_24.12.25.01.exe'
 ```
 
-輸出在 `dist/`。建置只編譯工具、執行不碰原廠程式的純邏輯自我檢查，不會執行原廠安裝器或修改硬體。完整包建置會檢查安裝器雜湊與簽章。
+輸出在 `dist/`；建置只編譯與自我檢查，不會執行原廠安裝器或修復桌面。完整包要求原廠安裝器雜湊相符且簽章有效。打包排除個人日誌、備份及設定，原址更新以修訂檔識別實際來源。
 
-先前本機修復已由使用者確認視窗、G 圖示與縮圖正常，紀錄也確認前景及充電等前後核對成功。beta.2 新增 --launch 自動修復捷徑，並改用編譯 EXE 執行修復以免受 Restricted 腳本政策阻擋，保留中英文介面與等候逾時，通過建置與純邏輯檢查；beta.2 已在同一台 AERO 15 KB 完成新捷徑的自動啟動與前後核對，圖示讀回成功、60% 上限與電源／服務不變；該輪 Windows 拒絕前景切換要求，不能保證強制置前。**乾淨安裝、重開機與多機型驗收仍未完成**。工具本身未簽章。
-
-回報問題請至 [Issues](https://github.com/kinostudio/gigabyte-control-center-window-fix/issues)，提供機型、Windows／原廠版本、雜湊核對結果與具體症狀。日誌可能含帳戶、路徑等資料，公開前先遮蔽；前一輪仍在修復時不要重複執行。
-
-MIT 僅適用修復程式碼與原創文件，原廠安裝器與圖示等維持原權利人所有；詳見[第三方說明](THIRD-PARTY-NOTICES.md)。本專案未獲 GIGABYTE 官方背書。
-
-beta.3 背景略過分支實測：2026-11-22 預檢為 0、動作 `reused-without-repair`，GUI PID 前後均為 89704，60% 上限與電源／服務一致。新版條件式異常分支與重新開機持續性尚未另行實機驗收。
-
-## 啟動時顯示在前方／beta.4
-
-入口透過 Windows `AllowSetForegroundWindow`，只把此次使用者啟動的前景權限傳給指定修復程序，再傳給實際執行啟用的視窗工具。不使用對所有程序授權、永久置頂、模擬輸入、執行緒輸入綁定或更改前景鎖定設定。請親自點新捷徑；無人操作的背景啟動可能沒有可傳遞的前景權限。若中途操作其他程式，Windows 仍可能拒絕切到前景。授權與實際前景結果分開記錄，不把工作列修復成功當成已成功置前。
-
-[Microsoft 官方前景權限說明](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-allowsetforegroundwindow)。
-
-## 先開原廠介面，再背景檢查／beta.5
-
-先開啟或顯示已核對版本的原廠 GUI，再處理較慢的韌體／服務查詢。顯示時用 HWND_TOP 將視窗提高一次，並要求一般前景；不設定 HWND_TOPMOST 永久置頂。正常就直接使用，不重啟、不重設 FirstTime、不查韌體、不跳 UAC；異常才在後面執行需要授權的診斷與修復，能保留程序就只修視窗。原廠本身的冷啟動仍需時間，最多先背景觀察 15 秒，避免還在初始化就被誤判而重開。
-
-這台的一般權限唯讀視窗檢查實測約 1.6 秒，不能當成所有情況的啟動保證。`launch-result.json` 記錄快速路徑耗時與是否需修復；受保護路徑另記 baseline／preflight／total 耗時。快速路徑會標示 `invariantsChecked: false`，沒有硬體寫入，也不宣稱已做韌體前後核對。
-
-beta.5 完整快速入口在既有正常 GUI 實測 1892 ms，動作為 `fast-reused-without-repair`，無 UAC、無重開、無受保護韌體查詢。已修正選到隱藏輔助視窗的問題，並測試可見主視窗優先於更大的隱藏視窗。使用者親點前景效果與冷啟動修復仍需分別驗收。
-
-## 原廠 ShowAP 作為第一步／beta.6 候選版
-
-先做很短的固定安裝器雜湊核對，立即呼叫 `C:\Program Files\ControlCenter\ShowAP.exe`；前面沒有 WMI、圖示掃描、韌體／服務查詢，也不再用自己的顯示程序代替原廠入口。不等待 ShowAP 結束，後面才以不改動視窗的 `--check` 做背景檢查；正常就結束，不做受保護修復或要求 UAC。
-
-非正常結果至少背景觀察八秒，且須重複出現才進入需要授權的診斷／修復，避免單次啟動樣本立即造成重啟。同工作階段若已有正常目前帳戶 GUI，不會只因另一個不同擁有者 GUI 存在就判定整體異常。真正修改仍受原廠版本雜湊限制，不猜測修復未知狀態。
-
-`launch-result.json` 分別記錄 ShowAP 啟動要求返回的 `submittedMs` 與背景檢查完成的 `elapsedMs`，並列出逐次狀態。前者不是實際點擊到畫面出現的時間。使用者回報 beta.5 比 ShowAP 慢；該輪第一個檢查不到一秒，但後續進入約 10.3 秒的重啟修復。先前健康分支 1.9 秒不能代表這個實際流程，因此不再以它宣稱這次實際使用更快；仍待親自比對。
+MIT 僅適用修復程式碼與原創文件；原廠安裝器、圖示及其他元件維持各權利人所有，未另行取得原廠再散布授權書或宣稱官方背書。詳見[第三方說明](THIRD-PARTY-NOTICES.md)。
